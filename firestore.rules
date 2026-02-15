@@ -1,0 +1,79 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isCreatingOwnProfile(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+
+    // User profiles - Publicly readable for landing page testimonials and username uniqueness checks
+    match /users/{userId} {
+      allow read: if true; 
+      allow create: if isCreatingOwnProfile(userId);
+      allow update, delete: if isSignedIn();
+    }
+
+    // User subcollections
+    // Admins (any signed-in user in this prototype) can read/delete for cascading cleanup and analytics
+    match /users/{userId}/categories/{categoryId} {
+      allow read, delete: if isOwner(userId) || isSignedIn();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId);
+    }
+
+    match /users/{userId}/transactions/{transactionId} {
+      allow read, delete: if isOwner(userId) || isSignedIn();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId);
+    }
+
+    match /users/{userId}/budgets/{budgetId} {
+      allow read, delete: if isOwner(userId) || isSignedIn();
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId);
+    }
+
+    match /users/{userId}/feedback/{feedbackId} {
+      allow read: if true;
+      allow create, update, delete: if isOwner(userId) || isSignedIn();
+    }
+
+    // Collection Group rules for landing page testimonials and Admin Maintenance Tools
+    match /{path=**}/feedback/{feedbackId} {
+      allow read: if true; 
+    }
+
+    match /{path=**}/transactions/{transactionId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/budgets/{budgetId} {
+      allow read: if isSignedIn();
+    }
+
+    match /{path=**}/categories/{categoryId} {
+      allow read: if isSignedIn();
+    }
+
+    // System diagnostic path for Database Connection tool
+    match /_system_/{document=**} {
+      allow read: if isSignedIn();
+    }
+
+    // Audit logs remain separate for security integrity
+    match /email_logs/{logId} {
+      allow read, list: if isSignedIn();
+      allow create: if true; // Allowed from Server Actions
+      allow delete: if isSignedIn();
+    }
+  }
+}

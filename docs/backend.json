@@ -1,0 +1,188 @@
+
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Wallet Tally application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name or unique username of the user."
+        },
+        "photoURL": {
+          "type": "string",
+          "description": "The URL of the user's profile avatar."
+        },
+        "country": {
+          "type": "string",
+          "description": "The country code of the user."
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "warningCount": {
+          "type": "number"
+        },
+        "lastWarningReason": {
+          "type": "string"
+        },
+        "lastWarningDate": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "name"
+      ]
+    },
+    "Transaction": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Transaction",
+      "type": "object",
+      "description": "Represents a financial transaction (income or expense).",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["income", "expense"]
+        },
+        "category": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId",
+        "amount",
+        "type",
+        "category",
+        "date"
+      ]
+    },
+    "Feedback": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Feedback",
+      "type": "object",
+      "description": "User feedback and rating for the application.",
+      "properties": {
+        "userId": {
+          "type": "string"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "isApproved": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "rating",
+        "comment",
+        "userId"
+      ]
+    },
+    "EmailLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "EmailLog",
+      "type": "object",
+      "description": "Logs of system emails sent to users.",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["Appreciation", "Warning", "Feedback Deletion", "Account Deletion", "OTP Verification", "Password Reset"] },
+        "recipientEmail": { "type": "string" },
+        "recipientName": { "type": "string" },
+        "subject": { "type": "string" },
+        "status": { "type": "string", "enum": ["Success", "Failed"] },
+        "admin": { "type": "string" },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" }
+      },
+      "required": ["type", "recipientEmail", "subject", "status", "sentAt"]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles."
+        }
+      },
+      {
+        "path": "/users/{userId}/transactions/{transactionId}",
+        "definition": {
+          "entityName": "Transaction",
+          "schema": {
+            "$ref": "#/backend/entities/Transaction"
+          },
+          "description": "Stores transactions for each user."
+        }
+      },
+      {
+        "path": "/users/{userId}/feedback/current",
+        "definition": {
+          "entityName": "Feedback",
+          "schema": {
+            "$ref": "#/backend/entities/Feedback"
+          },
+          "description": "Stores the user's latest feedback."
+        }
+      },
+      {
+        "path": "/email_logs/{logId}",
+        "definition": {
+          "entityName": "EmailLog",
+          "schema": {
+            "$ref": "#/backend/entities/EmailLog"
+          },
+          "description": "Stores system email logs."
+        }
+      }
+    ]
+  }
+}

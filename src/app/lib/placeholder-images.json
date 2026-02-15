@@ -1,0 +1,101 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "icon-wallet",
+      "description": "Wallet icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/wallet.png",
+      "imageHint": "finance wallet"
+    },
+    {
+      "id": "icon-money-bag",
+      "description": "Money bag icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/money-bag.png",
+      "imageHint": "money bag"
+    },
+    {
+      "id": "icon-safe",
+      "description": "Safe box icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/safe.png",
+      "imageHint": "security safe"
+    },
+    {
+      "id": "icon-bank",
+      "description": "Bank building icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/bank.png",
+      "imageHint": "bank building"
+    },
+    {
+      "id": "icon-coins",
+      "description": "Coins icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/coins.png",
+      "imageHint": "gold coins"
+    },
+    {
+      "id": "icon-cash",
+      "description": "Cash icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/cash.png",
+      "imageHint": "cash money"
+    },
+    {
+      "id": "icon-exchange",
+      "description": "Currency exchange icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/currency-exchange.png",
+      "imageHint": "currency swap"
+    },
+    {
+      "id": "icon-atm",
+      "description": "ATM machine icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/atm.png",
+      "imageHint": "atm machine"
+    },
+    {
+      "id": "icon-credit-card",
+      "description": "Credit card icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/bank-cards.png",
+      "imageHint": "credit card"
+    },
+    {
+      "id": "icon-calculator",
+      "description": "Calculator icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/calculator.png",
+      "imageHint": "math calculator"
+    },
+    {
+      "id": "icon-chart",
+      "description": "Bar chart icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/bar-chart.png",
+      "imageHint": "finance chart"
+    },
+    {
+      "id": "icon-pie-chart",
+      "description": "Pie chart icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/pie-chart.png",
+      "imageHint": "pie chart"
+    },
+    {
+      "id": "icon-area-chart",
+      "description": "Area chart icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/area-chart.png",
+      "imageHint": "area graph"
+    },
+    {
+      "id": "icon-bank-cards",
+      "description": "Bank cards icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/bank-cards.png",
+      "imageHint": "debit cards"
+    },
+    {
+      "id": "icon-mastercard",
+      "description": "Mastercard icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/mastercard.png",
+      "imageHint": "secure payment"
+    },
+    {
+      "id": "icon-money-box",
+      "description": "Piggy bank icon",
+      "imageUrl": "https://img.icons8.com/fluency/160/money-box.png",
+      "imageHint": "piggy bank"
+    }
+  ]
+}
