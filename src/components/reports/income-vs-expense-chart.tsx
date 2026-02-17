@@ -15,7 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { useMemo } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
@@ -26,29 +26,52 @@ interface IncomeVsExpenseChartProps {
 const chartConfig = {
   income: {
     label: 'Income',
-    color: 'hsl(var(--chart-2))',
+    color: '#4ade80', // Direct color mapping
   },
   expense: {
     label: 'Expense',
-    color: 'hsl(var(--chart-5))',
+    color: '#f87171', // Direct color mapping
   },
 } satisfies ChartConfig;
 
 export function IncomeVsExpenseChart({ transactions }: IncomeVsExpenseChartProps) {
   const chartData = useMemo(() => {
+    // More defensive data processing logic
     const monthlyData = transactions.reduce((acc, t) => {
-      const date = t.date.toDate ? t.date.toDate() : new Date(t.date);
+      if (!t || !t.date || typeof t.type !== 'string' || typeof t.amount !== 'number') {
+        return acc; // Skip invalid transaction
+      }
+
+      let date;
+      if (t.date.toDate) {
+        date = t.date.toDate();
+      } else if (typeof t.date === 'string') {
+        date = parseISO(t.date);
+      } else if (t.date instanceof Date) {
+        date = t.date;
+      } else {
+        return acc; // Skip if date is not a recognizable format
+      }
+
+      if (!isValid(date)) {
+        return acc; // Skip invalid dates
+      }
+
       const month = format(date, 'MMM');
       if (!acc[month]) {
         acc[month] = { income: 0, expense: 0 };
       }
-      acc[month][t.type] += t.amount;
+
+      if (t.type === 'income' || t.type === 'expense') {
+         acc[month][t.type] += t.amount;
+      }
+
       return acc;
     }, {} as Record<string, { income: number; expense: number }>);
 
-    return Object.entries(monthlyData).map(([month, data]: [string, { income: number; expense: number }]) => ({
+    return Object.entries(monthlyData).map(([month, data]) => ({
       month,
-      ...data,
+      data,
     }));
   }, [transactions]);
 
@@ -88,14 +111,14 @@ export function IncomeVsExpenseChart({ transactions }: IncomeVsExpenseChartProps
             <Line
               dataKey="income"
               type="monotone"
-              stroke="var(--color-income)"
+              stroke={chartConfig.income.color} // Use direct color
               strokeWidth={2}
               dot={false}
             />
             <Line
               dataKey="expense"
               type="monotone"
-              stroke="var(--color-expense)"
+              stroke={chartConfig.expense.color} // Use direct color
               strokeWidth={2}
               dot={false}
             />
