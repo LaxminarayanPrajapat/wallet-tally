@@ -1,32 +1,43 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Trash2, ShieldAlert, Loader2, Info, History, Eraser, CheckCircle2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { ShieldAlert, Loader2, Info, CheckCircle2, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useFirestore, useUser } from '@/firebase';
-import { collection, query, where, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { subDays } from 'date-fns';
-import { cn } from '@/lib/utils';
 
 export default function DatabaseCleanupPage() {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   
-  const [isCleaningLogs, setIsCleaningLogs] = useState(false);
+  const [isCleaning, setIsCleaning] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
 
   const purgeOldLogs = async () => {
     if (!firestore || !user) return;
     
-    setIsCleaningLogs(true);
+    setIsCleaning(true);
+    setLastAction(null);
     try {
-      const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+      const thirtyDaysAgo = subDays(new Date(), 30);
       const logsRef = collection(firestore, 'email_logs');
-      const q = query(logsRef, where('sentAt', '<', thirtyDaysAgo));
+      const q = query(logsRef, where('sentAt', '<', thirtyDaysAgo.toISOString()));
       
       const snapshot = await getDocs(q);
       const batch = writeBatch(firestore);
@@ -47,86 +58,86 @@ export default function DatabaseCleanupPage() {
       }
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Cleanup Failed', description: err.message });
+      setLastAction(`Error during cleanup: ${err.message}`);
     } finally {
-      setIsCleaningLogs(false);
+      setIsCleaning(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
-      <Card className="shadow-sm border border-slate-100 rounded-3xl overflow-hidden bg-white">
-        <CardContent className="p-10">
-          <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-inner">
-              <Trash2 className="w-8 h-8" />
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-3xl font-black text-[#1e3a8a] tracking-tight">Database Cleanup</h1>
-              <p className="text-slate-500 font-bold">Safe Maintenance & Log Rotation</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Database Cleanup</h1>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="rounded-xl border-2 border-slate-100 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="font-bold text-slate-800 text-lg">Manual Data Purge</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                            variant="outline"
+                            disabled={isCleaning}
+                            className="w-full h-11 font-bold text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                        >
+                            {isCleaning ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Trash2 className="w-5 h-5 mr-2" />}
+                            Purge Legacy Email Logs
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="rounded-2xl">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete all email logs older than 30 days. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={purgeOldLogs} className="bg-red-600 hover:bg-red-700">
+                            Yes, Purge Logs
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    <p className="text-xs text-slate-500 mt-3 text-center">
+                        Purge email communication logs older than 30 days.
+                    </p>
+                </CardContent>
+            </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card className="rounded-[2.5rem] border-0 shadow-xl overflow-hidden bg-white">
-          <CardContent className="p-10 space-y-8">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
-                <History className="w-6 h-6" />
-              </div>
-              <div className="space-y-0.5">
-                <h3 className="font-black text-slate-700 leading-tight">Rotate Email Logs</h3>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Maintenance Task</p>
-              </div>
-            </div>
-            
-            <p className="text-sm text-slate-500 font-medium leading-relaxed italic">
-              "System communications (OTPs, warnings) older than 30 days are automatically identified for deletion to optimize storage performance."
-            </p>
+            <Card className="rounded-xl border-2 border-slate-100 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-lg font-bold text-slate-800 flex items-center justify-between">
+                        <span>Action Summary</span>
+                        <Badge className="bg-slate-100 text-slate-600 font-semibold text-xs">Live Auditor</Badge>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-start gap-3 p-3 bg-slate-100 rounded-lg border border-slate-200">
+                        <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <p className="text-sm font-medium text-slate-600">
+                           Cleanup operations are permanent and cannot be undone.
+                        </p>
+                    </div>
 
-            <Button 
-              onClick={purgeOldLogs}
-              disabled={isCleaningLogs}
-              className="w-full h-14 bg-rose-500 hover:bg-rose-600 text-white font-black rounded-2xl shadow-lg shadow-rose-100 transition-all active:scale-95 border-0 flex items-center justify-center gap-3"
-            >
-              {isCleaningLogs ? <Loader2 className="w-5 h-5 animate-spin" /> : <Eraser className="w-5 h-5" />}
-              Purge Legacy Logs (30d+)
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[2.5rem] border-0 shadow-xl overflow-hidden bg-white">
-          <CardContent className="p-10 space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-50 pb-4">
-              <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest">Action Summary</h3>
-              <Badge className="bg-slate-100 text-slate-500 border-0 font-bold text-[9px] uppercase tracking-widest">Live Auditor</Badge>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                <Info className="w-5 h-5 text-primary shrink-0" />
-                <p className="text-[11px] font-bold text-slate-500 leading-normal">
-                  Cleanup operations are permanent. Please ensure you have exported any required audit logs before proceeding.
-                </p>
-              </div>
-
-              {lastAction ? (
-                <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                  <p className="text-[11px] font-black text-emerald-700 leading-normal">
-                    {lastAction}
-                  </p>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-10 opacity-30">
-                  <ShieldAlert className="w-12 h-12 text-slate-300" />
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    {lastAction ? (
+                        <div className="flex items-center gap-3 p-3 bg-emerald-100 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                        <p className="text-sm font-semibold text-emerald-800">
+                            {lastAction}
+                        </p>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-10 text-center">
+                        <ShieldAlert className="w-12 h-12 text-slate-300" />
+                        <p className="text-sm font-bold text-slate-400 mt-3">Awaiting Action</p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
     </div>
   );
 }

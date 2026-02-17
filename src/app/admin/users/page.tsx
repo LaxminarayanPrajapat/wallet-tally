@@ -5,15 +5,15 @@ import {
   Trash2, 
   Search, 
   Loader2, 
-  Eye,
   AlertTriangle,
   Send,
   Info,
-  ShieldAlert
+  ShieldAlert,
+  MoreVertical
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
-import { collection, doc, deleteDoc, updateDoc, increment, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, doc, writeBatch, getDocs, updateDoc, increment } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +34,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -45,455 +51,252 @@ import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/lib/countries';
 import { format } from 'date-fns';
 import { sendUserWarningEmail, sendAccountDeletionEmail } from '@/app/actions/email';
-import { cn } from '@/lib/utils';
 
-/**
- * @fileOverview User account management with integrated official warning and termination systems.
- * Implements cascading deletion of user data upon account termination.
- */
 export default function AdminUsersPage() {
   const firestore = useFirestore();
   const { user, isUserLoading: isAuthLoading } = useUser();
   const { toast } = useToast();
   
-  // UI States
-  const [searchTerm, setSearchTerm] = useState('');
-  const [countryFilter, setCountryFilter] = useState('all');
-  const [currencyFilter, setCurrencyFilter] = useState('all');
-  const [warningFilter, setWarningFilter] = useState('all');
+  const [filters, setFilters] = useState({ search: '', country: 'all', warning: 'all' });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
 
-  const [appliedFilters, setAppliedFilters] = useState({
-    search: '',
-    country: 'all',
-    currency: 'all',
-    warning: 'all'
-  });
-
-  // Action Modals State
   const [selectedUserForWarning, setSelectedUserForWarning] = useState<any>(null);
-  const [isWarningDialogOpen, setIsWarningDialogOpen] = useState(false);
-  const [violationType, setViolationType] = useState('');
-  const [detailedReason, setDetailedReason] = useState('');
+  const [warningDetails, setWarningDetails] = useState({ type: '', reason: '' });
   const [isWarningProcessing, setIsWarningProcessing] = useState(false);
 
-  // Termination Modal State
   const [userToDelete, setUserToDelete] = useState<any>(null);
-  const [isDeleteReasonOpen, setIsDeleteReasonOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
   const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
 
-  // Data Fetching
-  const usersQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthLoading || !user) return null;
-    return collection(firestore, 'users');
-  }, [firestore, user, isAuthLoading]);
+  const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
   const { data: users, isLoading: isUsersLoading } = useCollection(usersQuery);
 
-  const registeredUsers = useMemo(() => {
-    if (!users) return [];
-    return users.filter(u => u.email && u.email.includes('@'));
-  }, [users]);
+  const registeredUsers = useMemo(() => users?.filter(u => u.email?.includes('@')) || [], [users]);
 
   const uniqueCountries = useMemo(() => {
-    const codes = Array.from(new Set(registeredUsers.map(u => u.country || 'IN')));
+    const codes = [...new Set(registeredUsers.map(u => u.country || 'IN'))];
     return codes.map(code => countries.find(c => c.code === code)).filter(Boolean);
   }, [registeredUsers]);
 
-  const uniqueCurrencies = useMemo(() => {
-    const codes = Array.from(new Set(registeredUsers.map(u => u.country || 'IN')));
-    const symbols = Array.from(new Set(codes.map(code => {
-      const c = countries.find(item => item.code === code);
-      return c?.currency.symbol || '$';
-    })));
-    return symbols;
-  }, [registeredUsers]);
-
-  const handleApplyFilters = () => {
-    setAppliedFilters({
-      search: searchTerm,
-      country: countryFilter,
-      currency: currencyFilter,
-      warning: warningFilter
-    });
-  };
-
   const filteredUsers = useMemo(() => {
     return registeredUsers.filter(u => {
-      const matchesSearch = 
-        u.email?.toLowerCase().includes(appliedFilters.search.toLowerCase()) || 
-        u.name?.toLowerCase().includes(appliedFilters.search.toLowerCase());
-      
-      const matchesCountry = appliedFilters.country === 'all' || u.country === appliedFilters.country;
-      
-      const userCurrency = countries.find(c => c.code === (u.country || 'IN'))?.currency.symbol || '$';
-      const matchesCurrency = appliedFilters.currency === 'all' || userCurrency === appliedFilters.currency;
-      
-      const userHasWarning = (u.warningCount || 0) > 0;
-      const matchesWarning = 
-        appliedFilters.warning === 'all' || 
-        (appliedFilters.warning === 'with' && userHasWarning) ||
-        (appliedFilters.warning === 'without' && !userHasWarning);
-
-      return matchesSearch && matchesCountry && matchesCurrency && matchesWarning;
+      const hasWarning = (u.warningCount || 0) > 0;
+      return (
+        (u.email?.toLowerCase().includes(appliedFilters.search.toLowerCase()) || u.name?.toLowerCase().includes(appliedFilters.search.toLowerCase())) &&
+        (appliedFilters.country === 'all' || u.country === appliedFilters.country) &&
+        (appliedFilters.warning === 'all' || (appliedFilters.warning === 'with' && hasWarning) || (appliedFilters.warning === 'without' && !hasWarning))
+      );
     });
   }, [registeredUsers, appliedFilters]);
 
-  const initiateDelete = (user: any) => {
-    setUserToDelete(user);
-    setDeleteReason('');
-    setIsDeleteReasonOpen(true);
+  const handleFilterChange = (key: string, value: string) => setFilters(prev => ({ ...prev, [key]: value }));
+  const handleApplyFilters = () => setAppliedFilters(filters);
+  const handleResetFilters = () => {
+    const initialFilters = { search: '', country: 'all', warning: 'all' };
+    setFilters(initialFilters);
+    setAppliedFilters(initialFilters);
   };
+
+  const initiateDelete = (user: any) => setUserToDelete(user);
+  const initiateWarning = (user: any) => setSelectedUserForWarning(user);
 
   const handleConfirmDelete = async () => {
     if (!firestore || !userToDelete || !deleteReason.trim()) return;
-    
     setIsDeleteProcessing(true);
     try {
-      // 1. Dispatch official termination email via Server Action
       await sendAccountDeletionEmail(userToDelete.email, userToDelete.name || 'User', deleteReason);
-      
-      const userId = userToDelete.id;
       const batch = writeBatch(firestore);
-
-      // 2. Cascading cleanup: Purge all user-related subcollections
-      const subcollectionsToPurge = ['transactions', 'categories', 'budgets', 'feedback'];
-      
-      for (const colName of subcollectionsToPurge) {
-        const colRef = collection(firestore, 'users', userId, colName);
-        const snapshot = await getDocs(colRef);
-        snapshot.forEach((subDoc) => {
-          batch.delete(subDoc.ref);
-        });
+      const subcollections = ['transactions', 'categories', 'budgets', 'feedback'];
+      for (const col of subcollections) {
+        const snapshot = await getDocs(collection(firestore, 'users', userToDelete.id, col));
+        snapshot.forEach(subDoc => batch.delete(subDoc.ref));
       }
-
-      // 3. Remove the root user profile document
-      batch.delete(doc(firestore, 'users', userId));
-
-      // 4. Execute all deletions in a single batch atomic operation
+      batch.delete(doc(firestore, 'users', userToDelete.id));
       await batch.commit();
-      
-      toast({
-        title: "Account Terminated",
-        description: `Profile and all associated financial records for ${userToDelete.email} have been permanently purged.`,
-      });
-      
-      setIsDeleteReasonOpen(false);
-      setUserToDelete(null);
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Termination Failed", description: error.message });
-    } finally {
-      setIsDeleteProcessing(false);
-    }
-  };
-
-  const initiateWarning = (user: any) => {
-    setSelectedUserForWarning(user);
-    setViolationType('');
-    setDetailedReason('');
-    setIsWarningDialogOpen(true);
+      toast({ title: "Account Terminated", description: `User ${userToDelete.email} has been purged.` });
+      setUserToDelete(null); setDeleteReason('');
+    } catch (e: any) { toast({ variant: "destructive", title: "Termination Failed", description: e.message }); }
+    finally { setIsDeleteProcessing(false); }
   };
 
   const handleSendWarning = async () => {
-    if (!firestore || !selectedUserForWarning || !violationType || !detailedReason.trim()) return;
-    
+    if (!firestore || !selectedUserForWarning || !warningDetails.type || !warningDetails.reason.trim()) return;
     setIsWarningProcessing(true);
     try {
-      const result = await sendUserWarningEmail(
-        selectedUserForWarning.email, 
-        selectedUserForWarning.name || 'User', 
-        violationType,
-        detailedReason
-      );
-
-      if (result.success) {
-        const userRef = doc(firestore, 'users', selectedUserForWarning.id);
-        await updateDoc(userRef, {
-          warningCount: increment(1),
-          lastWarningReason: violationType,
-          lastWarningDate: new Date().toISOString()
-        });
-
-        toast({ title: "Warning Issued", description: `Official notice sent to ${selectedUserForWarning.email}.` });
-        setIsWarningDialogOpen(false);
-        setSelectedUserForWarning(null);
-      } else {
-        throw new Error(result.error);
-      }
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Process Failed", description: error.message });
-    } finally {
-      setIsWarningProcessing(false);
-    }
+      const result = await sendUserWarningEmail(selectedUserForWarning.email, selectedUserForWarning.name || 'User', warningDetails.type, warningDetails.reason);
+      if (!result.success) throw new Error(result.error);
+      await updateDoc(doc(firestore, 'users', selectedUserForWarning.id), { 
+        warningCount: increment(1), 
+        lastWarningReason: warningDetails.type, 
+        lastWarningDate: new Date().toISOString() 
+      });
+      toast({ title: "Warning Issued", description: `Official notice sent to ${selectedUserForWarning.email}.` });
+      setSelectedUserForWarning(null); setWarningDetails({ type: '', reason: '' });
+    } catch (e: any) { toast({ variant: "destructive", title: "Process Failed", description: e.message }); }
+    finally { setIsWarningProcessing(false); }
   };
 
   if (isAuthLoading || isUsersLoading) {
-    return (
-      <div className="flex h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
-      
-      <Card className="shadow-sm border border-slate-100 rounded-2xl overflow-hidden bg-white">
-        <CardContent className="p-8">
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold text-[#23414d]">User Account Management</h1>
-              <p className="text-sm text-slate-500">Registered: {registeredUsers.length} | Showing: {filteredUsers.length}</p>
-              <div className="flex items-center gap-2 pt-1 text-[13px] font-medium text-cyan-500">
-                <Info className="w-4 h-4" />
-                <span>Termination triggers a cascading purge of all user transactions and records.</span>
-              </div>
-            </div>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <Card className="shadow-lg border-slate-200/80 rounded-2xl bg-white">
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg font-bold text-slate-800">User Account Management</CardTitle>
+          <p className="text-xs sm:text-sm text-slate-500">Registered: {registeredUsers.length} | Filtered: {filteredUsers.length}</p>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Input placeholder="Search by name or email..." value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="h-10 rounded-md border-slate-300 lg:col-span-2" />
+            <FilterSelect label="Country" value={filters.country} onValueChange={v => handleFilterChange('country', v)} options={[{value: 'all', label: 'All Countries'}, ...uniqueCountries.map(c => ({ value: c!.code, label: c!.name }))]} />
+            <FilterSelect label="Warnings" value={filters.warning} onValueChange={v => handleFilterChange('warning', v)} options={[{value: 'all', label: 'All Users'}, {value: 'with', label: 'With Warnings'}, {value: 'without', label: 'Without Warnings'}]} />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="shadow-sm border border-slate-100 rounded-2xl bg-white overflow-hidden">
-        <CardContent className="p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-6 items-end">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-600">Country</label>
-              <Select value={countryFilter} onValueChange={setCountryFilter}>
-                <SelectTrigger className="h-11 rounded-lg border-slate-200">
-                  <SelectValue placeholder="All Countries" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Countries</SelectItem>
-                  {uniqueCountries.map(c => (
-                    <SelectItem key={c?.code} value={c?.code || ''}>{c?.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-600">Currency</label>
-              <Select value={currencyFilter} onValueChange={setCurrencyFilter}>
-                <SelectTrigger className="h-11 rounded-lg border-slate-200">
-                  <SelectValue placeholder="All Currencies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Currencies</SelectItem>
-                  {uniqueCurrencies.map(symbol => (
-                    <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-600">Warnings</label>
-              <Select value={warningFilter} onValueChange={setWarningFilter}>
-                <SelectTrigger className="h-11 rounded-lg border-slate-200">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Users</SelectItem>
-                  <SelectItem value="with">With Warnings</SelectItem>
-                  <SelectItem value="without">Without Warnings</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 lg:col-span-1">
-              <label className="text-sm font-medium text-slate-600">Search</label>
-              <Input 
-                placeholder="Name or email..." 
-                className="h-11 rounded-lg border-slate-200"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Button 
-              onClick={handleApplyFilters}
-              className="h-11 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white rounded-lg px-8 font-bold flex items-center justify-center gap-2"
-            >
-              <Search className="w-4 h-4" />
-              Filter
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button onClick={handleApplyFilters} className="h-9 sm:h-10 bg-primary hover:bg-primary/90 text-white rounded-md px-4 sm:px-6 font-bold flex items-center justify-center gap-2 text-sm">
+              <Search className="w-4 h-4" /> Apply
             </Button>
-          </div>
-
-          <div className="rounded-lg border border-slate-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-[#f1f5f9]">
-                <TableRow className="hover:bg-transparent border-0">
-                  <TableHead className="w-16 font-bold text-[#1e3a8a]">ID</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Username</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Email</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Country</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Currency</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Joined</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a] text-center">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((u, index) => {
-                    const country = countries.find(c => c.code === u.country);
-                    const joinedDate = u.joinedAt ? new Date(u.joinedAt) : new Date();
-                    return (
-                      <TableRow key={u.id} className="hover:bg-slate-50 border-b border-slate-50 last:border-0 group">
-                        <TableCell className="text-slate-600 font-medium">{1000 + index}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-700">{u.name || 'Anonymous'}</span>
-                            {(u.warningCount || 0) > 0 && (
-                              <Badge className="bg-red-500 text-white text-[9px] h-4 rounded-sm px-1.5 font-black uppercase tracking-tighter">WARNED</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-slate-600 text-xs font-medium">{u.email}</TableCell>
-                        <TableCell className="text-slate-600 font-medium">{u.country || 'IN'}</TableCell>
-                        <TableCell className="text-slate-600 font-medium">
-                          {country?.currency.name || 'Unknown'} ({country?.currency.symbol || '$'})
-                        </TableCell>
-                        <TableCell className="text-slate-500 text-[11px] font-bold">
-                          {format(joinedDate, 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 bg-[#23414d] hover:bg-[#23414d]/90 text-white rounded-lg flex items-center justify-center shadow-sm"
-                              title="View Information"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => initiateWarning(u)}
-                              className="h-8 w-8 bg-[#f59e0b] hover:bg-[#f59e0b]/90 text-white rounded-lg flex items-center justify-center shadow-sm"
-                              title={`Issue Warning (${u.warningCount || 0})`}
-                            >
-                              <AlertTriangle className="w-4 h-4" />
-                            </Button>
-
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => initiateDelete(u)}
-                              className="h-8 w-8 bg-[#dc2626] hover:bg-[#dc2626]/90 text-white rounded-lg flex items-center justify-center shadow-sm"
-                              title="Terminate Account"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-48 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <ShieldAlert className="w-16 h-16 text-slate-100" />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No matching users found</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+            <Button onClick={handleResetFilters} variant="ghost" className="h-9 sm:h-10 font-bold text-slate-600 rounded-md text-sm">Reset</Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Warning Dialog */}
-      <Dialog open={isWarningDialogOpen} onOpenChange={setIsWarningDialogOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-10 bg-white border-0 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-[#f59e0b] flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6" /> Official Warning
-            </DialogTitle>
-            <DialogDescription className="font-bold text-slate-400 pt-1">
-              Issue an official notice to <strong>{selectedUserForWarning?.email}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 pt-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Violation Type</label>
-              <Select value={violationType} onValueChange={setViolationType}>
-                <SelectTrigger className="h-14 rounded-2xl border-slate-200 bg-[#f8fafc]">
-                  <SelectValue placeholder="Select violation type..." />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl shadow-xl">
-                  <SelectItem value="False or Misleading Feedback">False or Misleading Feedback</SelectItem>
-                  <SelectItem value="Terms of Service Violation">Terms of Service Violation</SelectItem>
-                  <SelectItem value="Inappropriate Behavior">Inappropriate Behavior</SelectItem>
-                  <SelectItem value="Spam or Excessive Activity">Spam or Excessive Activity</SelectItem>
-                  <SelectItem value="Security Policy Violation">Security Policy Violation</SelectItem>
-                  <SelectItem value="Other Violation">Other Violation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="md:hidden space-y-4">
+        {filteredUsers.length > 0 ? filteredUsers.map((u, i) => <UserCard key={u.id} user={u} index={i} onWarn={initiateWarning} onDelete={initiateDelete} />) : <EmptyState />}
+      </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Detailed Explanation (Required)</label>
-              <Textarea 
-                placeholder="Provide specific details about the violation..."
-                className="min-h-[100px] rounded-2xl border-slate-200 p-4 text-sm bg-[#f8fafc]"
-                value={detailedReason}
-                onChange={(e) => setDetailedReason(e.target.value)}
-              />
-            </div>
+      <div className="hidden md:block">
+        <Card className="shadow-lg border-slate-200/80 rounded-2xl bg-white overflow-hidden">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow className="border-slate-100">
+                {['ID', 'Username', 'Email', 'Country', 'Joined', 'Actions'].map(h => <TableHead key={h} className="font-bold text-slate-600 text-xs">{h}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length > 0 ? filteredUsers.map((u, i) => <UserRow key={u.id} user={u} index={i} onWarn={initiateWarning} onDelete={initiateDelete} />) : <TableRow><TableCell colSpan={6}><EmptyState /></TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </Card>
+      </div>
 
-            <DialogFooter className="flex-col sm:flex-col gap-3">
-              <Button 
-                onClick={handleSendWarning}
-                disabled={!violationType || !detailedReason.trim() || isWarningProcessing}
-                className="w-full h-14 bg-[#f59e0b] hover:bg-[#d97706] text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 border-0"
-              >
-                {isWarningProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                Send Warning
-              </Button>
-              <Button variant="ghost" onClick={() => setIsWarningDialogOpen(false)} className="w-full font-bold text-slate-400">Cancel</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Reason Dialog */}
-      <Dialog open={isDeleteReasonOpen} onOpenChange={setIsDeleteReasonOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-10 bg-white border-0 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-red-600 flex items-center gap-3">
-              <Trash2 className="w-6 h-6" /> Account Termination
-            </DialogTitle>
-            <DialogDescription className="font-bold text-slate-400 pt-1">
-              Terminate account for <strong>{userToDelete?.email}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-6 pt-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Reason for Termination</label>
-              <Textarea 
-                placeholder="Explain the reason for this account deletion..."
-                className="min-h-[120px] rounded-2xl border-slate-200 p-4 italic text-sm"
-                value={deleteReason}
-                onChange={(e) => setDeleteReason(e.target.value)}
-              />
-            </div>
-
-            <DialogFooter className="flex-col sm:flex-col gap-3">
-              <Button 
-                onClick={handleConfirmDelete}
-                disabled={!deleteReason.trim() || isDeleteProcessing}
-                className="w-full h-14 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2"
-              >
-                {isDeleteProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Terminate & Notify User
-              </Button>
-              <Button variant="ghost" onClick={() => setIsDeleteReasonOpen(false)} className="w-full font-bold text-slate-400">Abort Action</Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <WarningDialog isOpen={!!selectedUserForWarning} onOpenChange={() => setSelectedUserForWarning(null)} user={selectedUserForWarning} details={warningDetails} setDetails={setWarningDetails} onConfirm={handleSendWarning} isProcessing={isWarningProcessing} />
+      <DeleteDialog isOpen={!!userToDelete} onOpenChange={() => setUserToDelete(null)} user={userToDelete} reason={deleteReason} setReason={setDeleteReason} onConfirm={handleConfirmDelete} isProcessing={isDeleteProcessing} />
     </div>
   );
 }
+
+const UserRow = ({ user, index, onWarn, onDelete }: any) => {
+  const country = countries.find(c => c.code === user.country);
+  return (
+    <TableRow className="hover:bg-slate-50/50 border-slate-100 text-sm">
+      <TableCell className="font-semibold text-slate-600 pl-6">{1001 + index}</TableCell>
+      <TableCell>
+        <div className="font-bold text-slate-800">{user.name || '-'}</div>
+        {(user.warningCount || 0) > 0 && <Badge variant="destructive" className="mt-1 text-[9px] h-4 font-black">Warned {user.warningCount}x</Badge>}
+      </TableCell>
+      <TableCell className="text-slate-500 font-medium">{user.email}</TableCell>
+      <TableCell className="text-slate-500 font-medium">{country?.name || 'Unknown'}</TableCell>
+      <TableCell className="text-slate-500 font-medium">{format(new Date(user.joinedAt), 'dd MMM yyyy')}</TableCell>
+      <TableCell className="text-right pr-6">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="rounded-xl">
+            <DropdownMenuItem onClick={() => onWarn(user)} className="font-semibold text-sm"><AlertTriangle className="w-4 h-4 mr-2"/>Issue Warning</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onDelete(user)} className="text-red-500 focus:text-red-500 font-semibold text-sm"><Trash2 className="w-4 h-4 mr-2"/>Terminate</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </TableCell>
+    </TableRow>
+  );
+};
+
+const UserCard = ({ user, index, onWarn, onDelete }: any) => {
+    const country = countries.find(c => c.code === user.country);
+    return (
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200/80 p-4 space-y-3">
+            <div className="flex justify-between items-start">
+                <div className="w-10/12">
+                    <div className="font-bold text-slate-800 truncate">{user.name || 'Anonymous'}</div>
+                    <div className="text-xs text-slate-500 font-medium truncate">{user.email}</div>
+                </div>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 -mt-1 -mr-1"><MoreVertical className="w-4 h-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="rounded-xl">
+                        <DropdownMenuItem onClick={() => onWarn(user)} className="font-semibold"><AlertTriangle className="w-4 h-4 mr-2"/>Issue Warning</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onDelete(user)} className="text-red-500 focus:text-red-500 font-semibold"><Trash2 className="w-4 h-4 mr-2"/>Terminate</DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs pt-2 border-t border-slate-100">
+                <InfoItem label="Country" value={country?.name || '-'}/>
+                <InfoItem label="Joined" value={format(new Date(user.joinedAt), 'dd MMM yy')}/>
+            </div>
+            {(user.warningCount || 0) > 0 && <Badge variant="destructive" className="w-fit text-[10px] h-5 font-black">Warned {user.warningCount} times</Badge>}
+        </div>
+    );
+};
+
+const FilterSelect = ({ label, onValueChange, ...props }: any) => (
+  <div>
+    <label className="text-xs font-semibold text-slate-500 ml-1">{label}</label>
+    <Select onValueChange={onValueChange} {...props}>
+      <SelectTrigger className="h-10 rounded-md border-slate-300 w-full"><SelectValue /></SelectTrigger>
+      <SelectContent className="rounded-lg">{props.options.map((o: any) => <SelectItem key={o.value} value={o.value} className="font-semibold">{o.label}</SelectItem>)}</SelectContent>
+    </Select>
+  </div>
+);
+
+const WarningDialog = ({ isOpen, onOpenChange, user, details, setDetails, onConfirm, isProcessing }: any) => (
+  <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-md w-[95vw] rounded-2xl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2 font-bold text-amber-600"><AlertTriangle/>Official Warning</DialogTitle>
+        <DialogDescription>Issue a notice to <strong className="truncate">{user?.email}</strong>.</DialogDescription>
+      </DialogHeader>
+      <div className="space-y-4 py-2">
+        <FilterSelect label="Violation Type" value={details.type} onValueChange={(v: any) => setDetails({ ...details, type: v })} options={['False Feedback', 'ToS Violation', 'Spam', 'Other'].map(v => ({label: v, value: v}))} />
+        <Textarea placeholder="Detailed explanation..." value={details.reason} onChange={(e: any) => setDetails({ ...details, reason: e.target.value })} className="min-h-[100px] rounded-md" />
+      </div>
+      <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+        <Button variant="ghost" onClick={onOpenChange}>Cancel</Button>
+        <Button onClick={onConfirm} disabled={!details.type || !details.reason.trim() || isProcessing} className="bg-amber-500 hover:bg-amber-600 text-white font-bold">
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4"/>} <span className="ml-2">Send Notice</span>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+const DeleteDialog = ({ isOpen, onOpenChange, user, reason, setReason, onConfirm, isProcessing }: any) => (
+  <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <DialogContent className="max-w-md w-[95vw] rounded-2xl">
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2 font-bold text-red-600"><Trash2/>Account Termination</DialogTitle>
+        <DialogDescription>Permanently remove <strong className="truncate">{user?.email}</strong> and all associated data.</DialogDescription>
+      </DialogHeader>
+      <div className="py-2">
+        <Textarea placeholder="Reason for termination (sent to user)..." value={reason} onChange={(e: any) => setReason(e.target.value)} className="min-h-[120px] rounded-md" />
+      </div>
+      <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+        <Button variant="ghost" onClick={onOpenChange}>Cancel</Button>
+        <Button onClick={onConfirm} disabled={!reason.trim() || isProcessing} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4"/>} <span className="ml-2">Confirm Purge</span>
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  </Dialog>
+);
+
+const EmptyState = () => (
+  <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+    <ShieldAlert className="w-12 h-12 text-slate-300" />
+    <div>
+      <h3 className="font-bold text-slate-700">No Matching Users</h3>
+      <p className="text-sm text-slate-500">Adjust the filters to find users.</p>
+    </div>
+  </div>
+);
+
+const InfoItem = ({label, value}: any) => <div className="space-y-1"><p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">{label}</p><p className="font-semibold text-slate-600 truncate">{value}</p></div>;

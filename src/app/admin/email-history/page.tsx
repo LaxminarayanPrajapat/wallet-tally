@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -11,16 +10,12 @@ import {
   AlertTriangle, 
   MessageSquareOff, 
   UserMinus,
-  Calendar,
-  CheckCircle2,
-  XCircle,
-  Hash,
-  User,
-  Type,
-  KeyRound
+  KeyRound,
+  Filter,
+  MoreVertical
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,372 +40,186 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
-/**
- * @fileOverview Email History module for administrators.
- * Tracks all system-generated emails sent to users with high-fidelity summaries.
- */
+const getSafeDate = (val: any): Date | null => {
+    if (val instanceof Timestamp) {
+        return val.toDate();
+    }
+    if (val?.toDate) {
+        return val.toDate();
+    }
+    const d = new Date(val);
+    if (d instanceof Date && !isNaN(d.getTime())) {
+        return d;
+    }
+    return null;
+};
+
 export default function AdminEmailHistoryPage() {
   const firestore = useFirestore();
-  const { user, isUserLoading } = useUser();
-  
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [appliedFilters, setAppliedFilters] = useState({
-    type: 'all',
-    status: 'all',
-    search: ''
-  });
-
+  const [filters, setFilters] = useState({ type: 'all', status: 'all', search: '' });
+  const [appliedFilters, setAppliedFilters] = useState(filters);
   const [selectedLog, setSelectedLog] = useState<any>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  const logsQuery = useMemoFirebase(() => {
-    if (!firestore || isUserLoading || !user) return null;
-    return query(collection(firestore, 'email_logs'), orderBy('sentAt', 'desc'));
-  }, [firestore, user, isUserLoading]);
+  const logsQuery = useMemoFirebase(() => query(collection(firestore, 'email_logs'), orderBy('sentAt', 'desc')), [firestore]);
   const { data: logs, isLoading } = useCollection(logsQuery);
-
-  // Safe date conversion helper
-  const getSafeDate = (val: any) => {
-    if (!val) return null;
-    if (val instanceof Timestamp) return val.toDate();
-    if (typeof val.toDate === 'function') return val.toDate();
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
-  };
 
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
-    return logs.filter(l => {
-      const matchesType = appliedFilters.type === 'all' || l.type === appliedFilters.type;
-      const matchesStatus = appliedFilters.status === 'all' || l.status === appliedFilters.status;
-      const matchesSearch = 
-        l.recipientEmail.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
-        l.recipientName?.toLowerCase().includes(appliedFilters.search.toLowerCase()) ||
-        l.subject.toLowerCase().includes(appliedFilters.search.toLowerCase());
-      
-      return matchesType && matchesStatus && matchesSearch;
-    });
+    return logs.filter(l => 
+      (appliedFilters.type === 'all' || l.type === appliedFilters.type) &&
+      (appliedFilters.status === 'all' || l.status === appliedFilters.status) &&
+      (l.recipientEmail.toLowerCase().includes(appliedFilters.search.toLowerCase()) || l.recipientName?.toLowerCase().includes(appliedFilters.search.toLowerCase()) || l.subject.toLowerCase().includes(appliedFilters.search.toLowerCase()))
+    );
   }, [logs, appliedFilters]);
 
   const stats = useMemo(() => {
-    if (!logs) return { appreciation: 0, warning: 0, feedbackDeletion: 0, accountDeletion: 0, otp: 0, reset: 0 };
-    return {
-      appreciation: logs.filter(l => l.type === 'Appreciation').length,
-      warning: logs.filter(l => l.type === 'Warning').length,
-      feedbackDeletion: logs.filter(l => l.type === 'Feedback Deletion').length,
-      accountDeletion: logs.filter(l => l.type === 'Account Deletion').length,
-      otp: logs.filter(l => l.type === 'OTP Verification').length,
-      reset: logs.filter(l => l.type === 'Password Reset').length,
-    };
+    if (!logs) return {};
+    return logs.reduce((acc, log) => ({...acc, [log.type]: (acc[log.type] || 0) + 1}), {} as Record<string, number>);
   }, [logs]);
 
-  const handleApplyFilters = () => {
-    setAppliedFilters({
-      type: typeFilter,
-      status: statusFilter,
-      search: searchTerm
-    });
-  };
-
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case 'Appreciation': return Star;
-      case 'Warning': return AlertTriangle;
-      case 'Feedback Deletion': return MessageSquareOff;
-      case 'Account Deletion': return UserMinus;
-      case 'OTP Verification': return KeyRound;
-      case 'Password Reset': return KeyRound;
-      default: return Mail;
-    }
-  };
-
-  const getTypeColor = (type: string) => {
-    switch (type) {
-      case 'Appreciation': return 'bg-emerald-500';
-      case 'Warning': return 'bg-amber-500';
-      case 'Feedback Deletion': return 'bg-rose-500';
-      case 'Account Deletion': return 'bg-slate-700';
-      case 'OTP Verification': return 'bg-blue-600';
-      case 'Password Reset': return 'bg-purple-600';
-      default: return 'bg-blue-500';
-    }
-  };
-
-  if (isUserLoading || isLoading) {
-    return (
-      <div className="flex h-[40vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  const handleFilterChange = (key: string, value: string) => setFilters(prev => ({ ...prev, [key]: value }));
+  const handleApplyFilters = () => setAppliedFilters(filters);
+  const handleResetFilters = () => {
+    const initial = { type: 'all', status: 'all', search: '' };
+    setFilters(initial); setAppliedFilters(initial);
   }
 
-  return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      
-      <Card className="shadow-sm border border-slate-100 rounded-2xl overflow-hidden bg-white">
-        <CardContent className="p-8">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <h1 className="text-4xl font-black text-[#1e3a8a] tracking-tight">Email History</h1>
-              <p className="text-slate-500 font-bold">
-                Total Logs: {logs?.length || 0} communications | Viewing: {filteredLogs.length}
-              </p>
-              <p className="text-sm font-bold text-cyan-500 pt-1">
-                Comprehensive audit trail including registration OTPs, password resets, and administrative actions.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  if (isLoading) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <SummaryCard icon={Star} count={stats.appreciation} label="Appreciation" color="emerald" />
-        <SummaryCard icon={AlertTriangle} count={stats.warning} label="Warning" color="amber" />
-        <SummaryCard icon={MessageSquareOff} count={stats.feedbackDeletion} label="Deletion" color="rose" />
-        <SummaryCard icon={UserMinus} count={stats.accountDeletion} label="Termination" color="slate" />
-        <SummaryCard icon={KeyRound} count={stats.otp} label="OTP Sent" color="blue" />
-        <SummaryCard icon={KeyRound} count={stats.reset} label="Pwd Reset" color="purple" />
+  const emailTypes = ['OTP Verification','Password Reset','Appreciation','Warning','Feedback Deletion','Account Deletion'];
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {emailTypes.map(type => <SummaryCard key={type} type={type} count={stats[type] || 0} /> )}
       </div>
 
-      <Card className="shadow-sm border border-slate-100 rounded-2xl bg-white overflow-hidden">
-        <CardContent className="p-8 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600">Email Type</label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="h-11 rounded-lg border-slate-200">
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="OTP Verification">OTP Verification</SelectItem>
-                  <SelectItem value="Password Reset">Password Reset</SelectItem>
-                  <SelectItem value="Appreciation">Appreciation</SelectItem>
-                  <SelectItem value="Warning">Warning</SelectItem>
-                  <SelectItem value="Feedback Deletion">Feedback Deletion</SelectItem>
-                  <SelectItem value="Account Deletion">Account Deletion</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600">Status</label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="h-11 rounded-lg border-slate-200">
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="Success">Success</SelectItem>
-                  <SelectItem value="Failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-600">Search</label>
-              <Input 
-                placeholder="Email, name, or subject..." 
-                className="h-11 rounded-lg border-slate-200"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <Button 
-              onClick={handleApplyFilters}
-              className="h-11 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white rounded-lg px-8 font-bold flex items-center justify-center gap-2"
-            >
-              <Search className="w-4 h-4" />
-              Filter
-            </Button>
+      <Card className="shadow-lg border-slate-200/80 rounded-2xl bg-white">
+        <CardHeader><CardTitle className="text-base sm:text-lg font-bold text-slate-800">Email Log Filters</CardTitle></CardHeader>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <Input placeholder="Search email, name, subject..." value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="h-10 rounded-md border-slate-300 lg:col-span-2"/>
+            <FilterSelect label="Email Type" value={filters.type} onValueChange={v => handleFilterChange('type', v)} options={[{value: 'all', label: 'All Types'}, ...emailTypes.map(t => ({value: t, label: t}))]} />
+            <FilterSelect label="Status" value={filters.status} onValueChange={v => handleFilterChange('status', v)} options={[{value: 'all', label: 'All Status'}, {value: 'Success', label: 'Success'}, {value: 'Failed', label: 'Failed'}]} />
           </div>
-
-          <div className="rounded-lg border border-slate-100 overflow-hidden">
-            <Table>
-              <TableHeader className="bg-[#f1f5f9]">
-                <TableRow className="hover:bg-transparent border-0">
-                  <TableHead className="w-16 font-bold text-[#1e3a8a]">ID</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Type</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Recipient</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Subject</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Status</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a]">Date</TableHead>
-                  <TableHead className="font-bold text-[#1e3a8a] text-center">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredLogs.length > 0 ? (
-                  filteredLogs.map((log) => {
-                    const Icon = getTypeIcon(log.type);
-                    const logDate = getSafeDate(log.sentAt);
-                    // Calculate sequence ID based on global index in 'logs' to keep latest at top with highest ID
-                    const globalIndex = logs?.indexOf(log) ?? 0;
-                    const displayId = 1000 + (logs?.length || 0) - globalIndex;
-                    
-                    return (
-                      <TableRow key={log.id} className="hover:bg-slate-50 border-b border-slate-50 last:border-0 group">
-                        <TableCell className="text-slate-600 font-medium">#{displayId}</TableCell>
-                        <TableCell>
-                          <Badge className={cn("gap-1.5 h-6 px-2.5 text-[10px] font-black border-0 uppercase tracking-wider", getTypeColor(log.type))}>
-                            <Icon className="w-3 h-3" />
-                            {log.type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-0.5">
-                            <p className="font-black text-slate-700 leading-none">{log.recipientName || 'Anonymous'}</p>
-                            <p className="text-[10px] font-medium text-slate-400">{log.recipientEmail}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[200px]">
-                          <p className="text-xs text-slate-600 font-medium truncate">
-                            {log.subject}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={cn(
-                            "h-5 px-2 text-[9px] font-black uppercase tracking-widest border-0",
-                            log.status === 'Success' ? "bg-emerald-500" : "bg-rose-500"
-                          )}>
-                            {log.status === 'Success' ? <CheckCircle2 className="w-2 h-2 mr-1" /> : <XCircle className="w-2 h-2 mr-1" />}
-                            {log.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-[10px] font-black text-slate-400">
-                            <p className="text-slate-600">{logDate ? format(logDate, 'MMM dd, yyyy') : 'N/A'}</p>
-                            <p className="opacity-70">{logDate ? format(logDate, 'HH:mm:ss') : ''}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-center">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              onClick={() => { setSelectedLog(log); setIsDetailOpen(true); }}
-                              className="h-8 w-8 bg-[#23414d] hover:bg-[#23414d]/90 text-white rounded-lg flex items-center justify-center shadow-sm"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-64 text-center">
-                      <div className="flex flex-col items-center justify-center gap-3">
-                        <Mail className="w-16 h-16 text-slate-100" />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No email logs found</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <Button onClick={handleApplyFilters} className="h-9 sm:h-10 bg-primary hover:bg-primary/90 text-white rounded-md px-4 sm:px-6 font-bold flex items-center justify-center gap-2 text-sm"><Filter className="w-4 h-4"/>Apply</Button>
+            <Button onClick={handleResetFilters} variant="ghost" className="h-9 sm:h-10 font-bold text-slate-600 rounded-md text-sm">Reset</Button>
           </div>
         </CardContent>
       </Card>
 
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-md rounded-[2.5rem] p-10 bg-white border-0 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-black text-[#1e3a8a] flex items-center gap-3">
-              <Mail className="w-6 h-6 text-[#1e3a8a]" /> Email Log Detail
-            </DialogTitle>
-            <DialogDescription className="font-bold text-slate-400">Audit trail for communication #{selectedLog?.id?.slice(-4)}</DialogDescription>
-          </DialogHeader>
-          
-          {selectedLog && (
-            <div className="space-y-6 pt-6">
-              <div className="grid grid-cols-1 gap-4">
-                <DetailItem icon={User} label="Recipient" value={`${selectedLog.recipientName} <${selectedLog.recipientEmail}>`} />
-                <DetailItem icon={Type} label="Email Type" badge={selectedLog.type} badgeColor={getTypeColor(selectedLog.type)} />
-                <DetailItem icon={Hash} label="Subject" value={selectedLog.subject} />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</p>
-                    <Badge className={cn("font-bold text-[10px]", selectedLog.status === 'Success' ? "bg-emerald-500" : "bg-rose-500")}>
-                      {selectedLog.status}
-                    </Badge>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sender</p>
-                    <p className="text-sm font-bold text-slate-700">{selectedLog.admin || 'System'}</p>
-                  </div>
+      <div className="md:hidden space-y-4">
+        {filteredLogs.length > 0 ? filteredLogs.map(log => <LogCard key={log.id} log={log} onView={setSelectedLog} />) : <EmptyState />}
+      </div>
+
+      <div className="hidden md:block">
+        <Card className="shadow-lg border-slate-200/80 rounded-2xl bg-white overflow-hidden">
+          <Table>
+            <TableHeader className="bg-slate-50"><TableRow className="border-slate-100">{[ 'Type', 'Recipient', 'Subject', 'Status', 'Date', 'Actions'].map(h => <TableHead key={h} className="text-xs font-bold text-slate-600">{h}</TableHead>)}</TableRow></TableHeader>
+            <TableBody>{filteredLogs.length > 0 ? filteredLogs.map(log => <LogRow key={log.id} log={log} onView={setSelectedLog}/>) : <TableRow><TableCell colSpan={6}><EmptyState /></TableCell></TableRow>}</TableBody>
+          </Table>
+        </Card>
+      </div>
+
+      <DetailDialog isOpen={!!selectedLog} onOpenChange={() => setSelectedLog(null)} log={selectedLog} />
+    </div>
+  );
+}
+
+const SummaryCard = ({ type, count }: { type: string, count: number }) => {
+  const { Icon, color } = getEmailTypeVisuals(type);
+  return (
+    <div className={cn("bg-white rounded-xl p-3 sm:p-4 shadow-lg border-l-4", color)}>
+      <div className="flex items-center justify-between"><p className="text-[10px] sm:text-xs font-bold text-slate-500 truncate">{type}</p><Icon className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400"/></div>
+      <p className="text-2xl sm:text-3xl font-bold text-slate-800 mt-1">{count}</p>
+    </div>
+  );
+};
+
+const LogRow = ({ log, onView }: any) => {
+  const safeDate = getSafeDate(log.sentAt);
+  const date = safeDate ? formatDistanceToNow(safeDate, { addSuffix: true }) : 'N/A';
+  return (
+    <TableRow className="hover:bg-slate-50/50 border-slate-100 text-sm">
+      <TableCell className="pl-6"><EmailTypeBadge type={log.type} /></TableCell>
+      <TableCell><div className="font-bold text-slate-800">{log.recipientName || '-'}</div><div className="text-xs text-slate-500 font-medium">{log.recipientEmail}</div></TableCell>
+      <TableCell className="max-w-xs"><p className="text-slate-600 truncate">{log.subject}</p></TableCell>
+      <TableCell><StatusBadge status={log.status} /></TableCell>
+      <TableCell className="text-slate-500 font-medium text-xs">{date}</TableCell>
+      <TableCell className="text-right pr-6"><Button variant="outline" size="sm" onClick={() => onView(log)} className="h-8"><Eye className="w-4 h-4 mr-2"/>View</Button></TableCell>
+    </TableRow>
+  );
+};
+
+const LogCard = ({ log, onView }: any) => {
+    const safeDate = getSafeDate(log.sentAt);
+    const date = safeDate ? formatDistanceToNow(safeDate, { addSuffix: true }) : 'N/A';
+    return (
+        <div className="bg-white rounded-xl shadow-lg border-l-4 p-4 space-y-3" style={{ borderLeftColor: getEmailTypeVisuals(log.type).plainColor }}>
+            <div className="flex justify-between items-start">
+                <div className="w-10/12">
+                    <div className="font-bold text-slate-800 truncate">{log.recipientName || '-'}</div>
+                    <div className="text-xs text-slate-500 font-medium truncate">{log.recipientEmail}</div>
                 </div>
-
-                {selectedLog.reason && (
-                  <div className="space-y-1 pt-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Administrative Reason / Error</p>
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs font-medium text-slate-600 italic leading-relaxed">
-                      "{selectedLog.reason}"
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-xl text-[10px] font-bold uppercase tracking-wider border border-blue-100">
-                <Calendar className="h-4 w-4 shrink-0" />
-                Dispatched on {getSafeDate(selectedLog.sentAt) ? format(getSafeDate(selectedLog.sentAt)!, 'PPP p') : 'Unknown Date'}
-              </div>
-
-              <Button 
-                onClick={() => setIsDetailOpen(false)}
-                className="w-full h-12 bg-[#1e3a8a] hover:bg-[#1e3a8a]/90 text-white font-bold rounded-xl shadow-lg mt-2"
-              >
-                Close View
-              </Button>
+                <Button variant="ghost" size="icon" onClick={() => onView(log)} className="h-8 w-8 -mt-1 -mr-1"><Eye className="w-4 h-4 text-slate-500" /></Button>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function DetailItem({ icon: Icon, label, value, badge, badgeColor }: { icon: any, label: string, value?: string, badge?: string, badgeColor?: string }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center gap-2">
-        <Icon className="w-3 h-3 text-slate-400" />
-        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-      </div>
-      {badge ? (
-        <Badge className={cn("font-bold text-[10px]", badgeColor)}>{badge}</Badge>
-      ) : (
-        <p className="text-sm font-bold text-slate-700 leading-tight">{value}</p>
-      )}
-    </div>
-  );
-}
-
-function SummaryCard({ icon: Icon, count, label, color }: { icon: any, count: number, label: string, color: string }) {
-  const colorMap: Record<string, string> = {
-    emerald: 'text-emerald-600 border-l-emerald-500',
-    amber: 'text-amber-600 border-l-amber-500',
-    rose: 'text-rose-600 border-l-rose-500',
-    slate: 'text-slate-600 border-l-slate-700',
-    blue: 'text-blue-600 border-l-blue-600',
-    purple: 'text-purple-600 border-l-purple-600'
-  };
-
-  return (
-    <Card className={cn("shadow-sm border-0 border-l-[4px] rounded-xl bg-white", colorMap[color])}>
-      <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-        <Icon className="w-6 h-6 opacity-80 mb-2" strokeWidth={2.5} />
-        <div>
-          <div className="text-2xl font-black text-[#1e293b] tracking-tighter">{count}</div>
-          <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">{label}</p>
+            <div className="font-semibold text-sm text-slate-600 truncate">{log.subject}</div>
+            <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                <EmailTypeBadge type={log.type} />
+                <div className="text-slate-500 font-medium">{date}</div>
+            </div>
         </div>
-      </CardContent>
-    </Card>
-  );
+    );
+};
+
+const FilterSelect = ({ label, onValueChange, ...props }: any) => (
+    <div>
+        <label className="text-xs font-semibold text-slate-500 ml-1">{label}</label>
+        <Select onValueChange={onValueChange} {...props}><SelectTrigger className="h-10 rounded-md border-slate-300 w-full"><SelectValue /></SelectTrigger><SelectContent className="rounded-lg">{props.options.map((o: any) => <SelectItem key={o.value} value={o.value} className="font-semibold">{o.label}</SelectItem>)}</SelectContent></Select>
+    </div>
+);
+
+const DetailDialog = ({ isOpen, onOpenChange, log }: any) => {
+    const safeDate = log ? getSafeDate(log.sentAt) : null;
+    return (
+        <Dialog open={isOpen} onOpenChange={onOpenChange}><DialogContent className="max-w-lg w-[95vw] rounded-2xl">
+            <DialogHeader><DialogTitle className="flex items-center gap-3"><EmailTypeBadge type={log?.type} /><span>Log Details</span></DialogTitle></DialogHeader>
+            {log && <div className="space-y-3 py-2 text-sm">
+                <p><strong>To:</strong> {log.recipientName} &lt;{log.recipientEmail}&gt;</p>
+                <p><strong>Subject:</strong> {log.subject}</p>
+                <p><strong>Status:</strong> <StatusBadge status={log.status} /></p>
+                <p><strong>Date:</strong> {safeDate ? format(safeDate, 'PPP p') : 'N/A'}</p>
+                {log.reason && <div className="pt-2"><strong className="block mb-1">Reason/Error:</strong><p className="italic bg-slate-50 p-3 rounded-md border text-xs">{log.reason}</p></div>}
+            </div>}
+        </DialogContent></Dialog>
+    );
+};
+
+const EmptyState = () => <div className="flex flex-col items-center justify-center gap-4 py-12 text-center"><Mail className="w-12 h-12 text-slate-300" /><div><h3 className="font-bold text-slate-700">No Email Logs Found</h3><p className="text-sm text-slate-500">No records match the current filters.</p></div></div>;
+
+const EmailTypeBadge = ({ type }: {type?: string}) => {
+    if (!type) return null;
+    const { Icon, textColor, bgColor } = getEmailTypeVisuals(type);
+    return <Badge className={cn("gap-1.5 items-center font-bold text-[10px]", textColor, bgColor)}><Icon className="w-3 h-3"/>{type}</Badge>
 }
+
+const StatusBadge = ({ status }: { status: string}) => (
+    <Badge className={cn("font-bold text-[10px]", status === 'Success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800')}>{status}</Badge>
+);
+
+const getEmailTypeVisuals = (type: string) => {
+    switch (type) {
+        case 'Appreciation': return { Icon: Star, color: 'border-l-green-500', textColor: 'text-green-800', bgColor: 'bg-green-100', plainColor: '#22c55e' };
+        case 'Warning': return { Icon: AlertTriangle, color: 'border-l-amber-500', textColor: 'text-amber-800', bgColor: 'bg-amber-100', plainColor: '#f59e0b' };
+        case 'Feedback Deletion': return { Icon: MessageSquareOff, color: 'border-l-red-500', textColor: 'text-red-800', bgColor: 'bg-red-100', plainColor: '#ef4444' };
+        case 'Account Deletion': return { Icon: UserMinus, color: 'border-l-slate-600', textColor: 'text-slate-800', bgColor: 'bg-slate-200', plainColor: '#475569' };
+        case 'OTP Verification': return { Icon: KeyRound, color: 'border-l-blue-500', textColor: 'text-blue-800', bgColor: 'bg-blue-100', plainColor: '#3b82f6' };
+        case 'Password Reset': return { Icon: KeyRound, color: 'border-l-purple-500', textColor: 'text-purple-800', bgColor: 'bg-purple-100', plainColor: '#8b5cf6' };
+        default: return { Icon: Mail, color: 'border-l-gray-400', textColor: 'text-gray-800', bgColor: 'bg-gray-100', plainColor: '#9ca3af' };
+    }
+};

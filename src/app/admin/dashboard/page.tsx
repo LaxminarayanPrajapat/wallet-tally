@@ -27,9 +27,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { countries } from '@/lib/countries';
 
-/**
- * @fileOverview Administrative dashboard providing high-fidelity analytics and system health metrics.
- */
 export default function AdminDashboardPage() {
   const firestore = useFirestore();
   const { user, isUserLoading } = useUser();
@@ -60,24 +57,15 @@ export default function AdminDashboardPage() {
     return (sum / allFeedback.length).toFixed(1);
   }, [allFeedback]);
 
-  // Robust logic to identify and group demographics
   const countryData = useMemo(() => {
     if (!registeredUsers || registeredUsers.length === 0) return [];
     const counts: Record<string, number> = {};
-    
     registeredUsers.forEach(u => {
-      // Robust detection for India/IN
       const countryVal = u.country?.trim().toUpperCase() || 'IN'; 
-      
-      const match = countries.find(c => 
-        c.code.toUpperCase() === countryVal || 
-        c.name.toUpperCase() === countryVal
-      );
-      
+      const match = countries.find(c => c.code.toUpperCase() === countryVal || c.name.toUpperCase() === countryVal);
       const name = match ? match.name : 'Unknown';
       counts[name] = (counts[name] || 0) + 1;
     });
-    
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [registeredUsers]);
 
@@ -85,130 +73,77 @@ export default function AdminDashboardPage() {
 
   if (isUserLoading || isUsersLoading || isFeedbackLoading) {
     return (
-      <div className="flex h-[40vh] items-center justify-center">
+      <div className="flex h-[60vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
-      {/* Header Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         <SummaryItem icon={Users} label="Total Users" value={totalUsers} />
         <SummaryItem icon={MessageSquare} label="Total Feedbacks" value={totalFeedbacks} />
         <SummaryItem icon={Star} label="Avg Rating" value={`${avgRating} ★`} />
       </div>
 
-      {/* Analytics Rows */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="shadow-xl border-0 rounded-[2.5rem] overflow-hidden bg-white">
-          <CardHeader className="py-6 px-8 border-b border-slate-50 bg-slate-50/30">
-            <CardTitle className="text-sm font-bold text-slate-600 flex items-center gap-3">
-              <Globe className="w-5 h-5 text-primary" /> User Demographics
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 md:gap-6">
+        <Card className="xl:col-span-3 shadow-lg border border-slate-200/80 rounded-2xl bg-white">
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100">
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-3">
+              <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> User Demographics
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-[380px] p-8">
+          <CardContent className="h-[300px] sm:h-[350px] p-2 sm:p-4">
             {countryData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={countryData}
-                    innerRadius={0}
-                    outerRadius={110}
-                    paddingAngle={0}
-                    dataKey="value"
-                    nameKey="name"
-                    stroke="#fff"
-                    strokeWidth={2}
-                    startAngle={90}
-                    endAngle={450}
-                  >
+                  <Pie data={countryData} innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" nameKey="name" stroke="#fff">
                     {countryData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <RechartsTooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        const total = countryData.reduce((acc, curr) => acc + curr.value, 0);
-                        const percent = ((data.value / total) * 100).toFixed(1);
-                        return (
-                          <div className="bg-[#1a1c1e] text-white p-3 rounded-lg shadow-2xl text-[10px] border border-white/10 min-w-[140px]">
-                            <p className="font-bold mb-1.5 text-xs border-b border-white/10 pb-1">{data.name}</p>
-                            <div className="flex items-center gap-2">
-                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: payload[0].color }} />
-                               <span className="font-medium">{data.value} users ({percent}%)</span>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend 
-                    layout="vertical" 
-                    align="right" 
-                    verticalAlign="middle" 
-                    iconType="circle"
-                    iconSize={10}
-                    wrapperStyle={{ paddingLeft: '30px' }}
-                    formatter={(value) => <span className="text-[12px] font-bold text-slate-500">{value}</span>}
-                  />
+                  <RechartsTooltip content={<CustomTooltip colors={COLORS} />} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ paddingTop: '15px' }} formatter={(value) => <span className="text-[10px] sm:text-xs font-semibold text-slate-500">{value}</span>}/>
                 </PieChart>
               </ResponsiveContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <Globe className="w-12 h-12 text-slate-100 mb-3" />
-                <p className="text-sm font-medium text-slate-400">No demographic data available</p>
-              </div>
-            )}
+            ) : <EmptyState icon={Globe} text="No demographic data available" />}
           </CardContent>
         </Card>
 
-        <Card className="shadow-xl border-0 rounded-[2.5rem] overflow-hidden bg-white">
-          <CardHeader className="py-6 px-8 border-b border-slate-50 bg-slate-50/30">
-            <CardTitle className="text-sm font-bold text-slate-600 flex items-center gap-3">
-              <MessageSquare className="w-5 h-5 text-primary" /> Feedback Distribution
+        <Card className="xl:col-span-2 shadow-lg border border-slate-200/80 rounded-2xl bg-white">
+          <CardHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-100">
+            <CardTitle className="text-sm sm:text-base font-bold text-slate-800 flex items-center gap-3">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> Feedback Distribution
             </CardTitle>
           </CardHeader>
-          <CardContent className="h-[380px] flex items-center justify-center p-8">
+          <CardContent className="h-[300px] sm:h-[350px] flex items-center justify-center p-4 sm:p-6">
             {allFeedback && allFeedback.length > 0 ? (
-              <div className="w-full space-y-6">
+              <div className="w-full space-y-3 sm:space-y-4">
                 {[5, 4, 3, 2, 1].map(r => {
                   const count = allFeedback.filter(f => Number(f.rating) === r).length;
                   const percent = (allFeedback.length > 0) ? (count / allFeedback.length) * 100 : 0;
                   return (
-                    <div key={r} className="flex items-center gap-4">
-                      <span className="text-xs font-black text-slate-600 w-8">{r} ★</span>
-                      <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                        <div 
-                          className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000" 
-                          style={{ width: `${percent}%` }} 
-                        />
+                    <div key={r} className="flex items-center gap-2 sm:gap-3">
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-600 w-6 text-right">{r} ★</span>
+                      <div className="flex-1 h-2 sm:h-2.5 bg-slate-100 rounded-full shadow-inner">
+                        <div className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${percent}%` }} />
                       </div>
-                      <span className="text-xs font-bold text-muted-foreground w-10 text-right">{count}</span>
+                      <span className="text-[10px] sm:text-xs font-semibold text-muted-foreground w-8 text-right">{count}</span>
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <div className="text-center space-y-3">
-                <MessageSquare className="w-12 h-12 text-slate-100 mb-3" />
-                <p className="text-sm font-medium text-slate-400">No feedback data available</p>
-              </div>
-            )}
+            ) : <EmptyState icon={MessageSquare} text="No feedback data available" />}
           </CardContent>
         </Card>
       </div>
 
-      {/* System Health Section */}
-      <div className="space-y-6 pb-12">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-slate-400 flex items-center gap-3 px-2">
-          <Terminal className="w-4 h-4 text-primary" /> System Information
+      <div>
+        <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-500 flex items-center gap-3 mt-8 md:mt-10 mb-4">
+          <Terminal className="w-4 h-4 sm:w-5 sm:h-5 text-primary" /> System Information
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
           <SystemInfoCard icon={Cloud} label="Platform" value="Firebase Hosting" badge="Live" />
           <SystemInfoCard icon={Database} label="Primary DB" value="Cloud Firestore" badge="Stable" />
           <SystemInfoCard icon={Cpu} label="Runtime" value="Next.js v15.5" />
@@ -219,35 +154,60 @@ export default function AdminDashboardPage() {
   );
 }
 
-function SummaryItem({ icon: Icon, label, value }: { icon: any, label: string, value: string | number }) {
-  return (
-    <Card className="shadow-xl border-0 border-l-[6px] border-l-primary rounded-2xl bg-white transition-all hover:scale-[1.02] active:scale-[0.98] group">
-      <CardContent className="p-10 flex flex-col items-center justify-center space-y-4">
-        <div className="p-4 rounded-[1.5rem] bg-slate-50 text-primary group-hover:bg-primary group-hover:text-white transition-colors duration-500 shadow-inner">
-          <Icon className="w-10 h-10" />
-        </div>
-        <div className="text-center space-y-1">
-          <div className="text-5xl font-black text-[#1e293b] tracking-tighter">{value}</div>
-          <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.3em]">{label}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
+const SummaryItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
+  <Card className="shadow-lg border-slate-200/80 rounded-xl sm:rounded-2xl bg-white transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]">
+    <CardContent className="p-4 sm:p-6 flex items-center space-x-3 sm:space-x-4">
+      <div className="p-2 sm:p-3 rounded-full bg-slate-100 text-primary shadow-sm">
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
+      </div>
+      <div>
+        <p className="text-xl sm:text-3xl font-bold text-slate-800">{value}</p>
+        <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+      </div>
+    </CardContent>
+  </Card>
+);
 
-function SystemInfoCard({ icon: Icon, label, value, badge }: { icon: any, label: string, value: string, badge?: string }) {
-  return (
-    <Card className="shadow-lg border-0 bg-white hover:shadow-2xl transition-all duration-500 rounded-[1.5rem]">
-      <CardContent className="p-8 flex flex-col items-center justify-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-primary shadow-inner">
-          <Icon className="w-6 h-6" />
-        </div>
-        <div className="text-center space-y-2">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-          <div className="text-sm font-black text-[#1e293b]">{value}</div>
-          {badge && <Badge className="h-5 px-3 text-[9px] font-black bg-emerald-500 hover:bg-emerald-600 border-0 rounded-full shadow-lg shadow-emerald-100">{badge}</Badge>}
-        </div>
-      </CardContent>
+const SystemInfoCard = ({ icon: Icon, label, value, badge }: { icon: React.ElementType, label: string, value: string, badge?: string }) => (
+    <Card className="shadow-lg border-slate-200/80 rounded-xl sm:rounded-2xl bg-white">
+        <CardContent className="p-4 sm:p-5 flex items-center gap-3 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-full bg-slate-100 text-primary shadow-sm">
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div>
+                <p className="text-xs sm:text-sm font-bold text-slate-800">{value}</p>
+                <p className="text-[10px] sm:text-xs font-semibold text-slate-500 uppercase tracking-wider">{label}</p>
+            </div>
+            {badge && <Badge className="ml-auto h-4 px-2 sm:h-5 sm:px-2.5 text-[8px] sm:text-[9px] font-bold bg-emerald-100 text-emerald-800 border-0 rounded-full">{badge}</Badge>}
+        </CardContent>
     </Card>
-  );
-}
+);
+
+const CustomTooltip = ({ active, payload, colors }: { active?: boolean; payload?: any[]; colors: string[] }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0];
+    const total = payload.reduce((acc: number, curr: any) => acc + curr.payload.value, 0);
+    const percent = ((data.value / total) * 100).toFixed(1);
+    const color = colors[data.payload.index % colors.length];
+
+    return (
+      <div className="bg-slate-800 text-white p-2 text-[10px] sm:p-2.5 sm:text-xs rounded-lg shadow-lg border border-slate-700">
+        <p className="font-bold mb-1 border-b border-slate-600 pb-1">{data.name}</p>
+        <div className="flex items-center gap-2">
+           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+           <span>{data.value} users ({percent}%)</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
+
+const EmptyState = ({ icon: Icon, text }: { icon: React.ElementType, text: string }) => (
+  <div className="flex flex-col items-center justify-center h-full text-center text-slate-400 space-y-2 sm:space-y-3">
+    <div className="p-3 sm:p-4 bg-slate-100 rounded-full">
+        <Icon className="w-8 h-8 sm:w-10 sm:h-10" />
+    </div>
+    <p className="text-xs sm:text-sm font-semibold">{text}</p>
+  </div>
+);

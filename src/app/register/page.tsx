@@ -70,7 +70,7 @@ const passwordValidation = new RegExp(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]
 const formSchema = z
   .object({
     username: z.string().min(3, 'Username must be at least 3 characters.'),
-    email: z.string().email({ message: 'Please enter a valid email address.' }).optional().or(z.literal('')),
+    email: z.string().email({ message: 'Please enter a valid email address.' }),
     password: z.string().regex(passwordValidation, {
       message:
         'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.',
@@ -134,57 +134,25 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Determine Auth Path: Email vs Username
-      if (values.email) {
-        // Email Path: Check uniqueness and send OTP
-        const signInMethods = await fetchSignInMethodsForEmail(auth, values.email);
-        if (signInMethods.length > 0) {
-          form.setError('email', { type: 'manual', message: 'This email address is already in use.' });
-          setIsLoading(false);
-          return;
-        }
+      // 2. Email Path: Check uniqueness and send OTP
+      const signInMethods = await fetchSignInMethodsForEmail(auth, values.email);
+      if (signInMethods.length > 0) {
+        form.setError('email', { type: 'manual', message: 'This email address is already in use.' });
+        setIsLoading(false);
+        return;
+      }
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        sessionStorage.setItem('registrationData', JSON.stringify(values));
-        sessionStorage.setItem('otp', otp);
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      sessionStorage.setItem('registrationData', JSON.stringify(values));
+      sessionStorage.setItem('otp', otp);
 
-        const result = await sendOtpEmail(values.email, otp);
+      const result = await sendOtpEmail(values.email, otp);
 
-        if (result.success) {
-          toast({ title: 'Verification Code Sent', description: `A 6-digit code has been sent to ${values.email}.` });
-          router.push(`/otp-verification?email=${encodeURIComponent(values.email)}`);
-        } else {
-          throw new Error(result.error || 'Failed to send verification email.');
-        }
+      if (result.success) {
+        toast({ title: 'Verification Code Sent', description: `A 6-digit code has been sent to ${values.email}.` });
+        router.push(`/otp-verification?email=${encodeURIComponent(values.email)}`);
       } else {
-        // Username Only Path: Direct Creation
-        const virtualEmail = `${values.username}@wallet-tally.internal`;
-        
-        // Ensure virtual email is unique too
-        const existingVirtual = await fetchSignInMethodsForEmail(auth, virtualEmail);
-        if (existingVirtual.length > 0) {
-          form.setError('username', { type: 'manual', message: 'This account name is already registered.' });
-          setIsLoading(false);
-          return;
-        }
-
-        const userCredential = await createUserWithEmailAndPassword(auth, virtualEmail, values.password);
-        const user = userCredential.user;
-
-        await updateProfile(user, { displayName: values.username, photoURL: values.photoURL });
-
-        await setDoc(doc(firestore, 'users', user.uid), {
-          id: user.uid,
-          email: virtualEmail,
-          name: values.username,
-          photoURL: values.photoURL,
-          country: values.country,
-          joinedAt: new Date().toISOString()
-        });
-
-        localStorage.setItem('currencySymbol', values.currency);
-        toast({ title: 'Welcome!', description: 'Your account has been created successfully.' });
-        router.push('/dashboard');
+        throw new Error(result.error || 'Failed to send verification email.');
       }
     } catch (error: any) {
       toast({
@@ -207,7 +175,7 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight text-primary">Create Account</h1>
-            <p className="text-muted-foreground text-sm font-medium">Register by email or choose a unique username</p>
+            <p className="text-muted-foreground text-sm font-medium">Enter your details below to create an account</p>
           </div>
         </div>
 
@@ -298,7 +266,7 @@ export default function RegisterPage() {
               name="email"
               render={({ field }) => (
                 <FormItem className="space-y-1.5">
-                  <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Email (Optional)</FormLabel>
+                  <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Email</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

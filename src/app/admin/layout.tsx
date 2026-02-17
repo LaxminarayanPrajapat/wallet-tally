@@ -1,24 +1,25 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Users, 
   MessageSquare, 
   History, 
-  Wrench, 
   LogOut,
   ChevronDown,
   Loader2,
   Home,
   ShieldCheck,
   Menu,
+  X,
   Database,
   Mail,
   Info,
   BarChart3,
-  Trash2
+  Trash2,
+  Settings
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -26,41 +27,57 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet';
 import { useUser, useAuth } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import { Icons } from '@/components/icons';
-import { Button } from '@/components/ui/button';
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+const TopNavLink = ({ href, children, currentPath }: { href: string; children: ReactNode; currentPath: string }) => (
+  <Link
+    href={href}
+    className={cn(
+      "px-3 py-1.5 text-sm font-bold transition-colors rounded-md",
+      currentPath === href
+        ? "text-primary bg-slate-100"
+        : "text-slate-700 hover:bg-slate-100"
+    )}
+  >
+    {children}
+  </Link>
+);
+
+export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (isUserLoading) return;
-
     const isAdmin = localStorage.getItem('isAdmin');
-    if (isAdmin !== 'true') {
-      router.push('/login');
-    } else if (!user) {
+    if (isAdmin !== 'true' || !user) {
       router.push('/login');
     } else {
       setIsAuthorized(true);
     }
   }, [user, isUserLoading, router]);
+
+  useEffect(() => {
+    if (isSidebarOpen) setIsSidebarOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) setIsSidebarOpen(false);
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize();
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = async () => {
     localStorage.removeItem('isAdmin');
@@ -70,7 +87,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isUserLoading || !isAuthorized) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#f1f5f9]">
+      <div className="flex h-screen items-center justify-center bg-slate-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -84,176 +101,164 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   const toolLinks = [
-    { label: 'Database Connection', href: '/admin/tools/database-connection', icon: Database, group: 'System Checks' },
-    { label: 'Email Connection', href: '/admin/tools/email-connection', icon: Mail, group: 'System Checks' },
-    { label: 'System Information', href: '/admin/tools/system-information', icon: Info, group: 'System Checks' },
-    { label: 'Database Analysis', href: '/admin/tools/database-analysis', icon: BarChart3, group: 'Maintenance' },
-    { label: 'Database Cleanup', href: '/admin/tools/database-cleanup', icon: Trash2, group: 'Maintenance' },
+    { label: 'DB Connection', href: '/admin/tools/database-connection', icon: Database },
+    { label: 'Email Connection', href: '/admin/tools/email-connection', icon: Mail },
+    { label: 'System Info', href: '/admin/tools/system-information', icon: Info },
+    { label: 'DB Analysis', href: '/admin/tools/database-analysis', icon: BarChart3 },
+    { label: 'DB Cleanup', href: '/admin/tools/database-cleanup', icon: Trash2 },
   ];
+  
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full bg-white">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200">
+        <Link href="/admin/dashboard" className="flex items-center gap-3">
+          <Icons.Logo className="h-8 w-8 text-primary" />
+          <span className="font-bold text-lg text-primary tracking-tight">Admin Panel</span>
+        </Link>
+        <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-md">
+          <X className="w-6 h-6" />
+        </button>
+      </div>
+      <nav className="flex-1 p-4 space-y-1">
+        <p className="px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu</p>
+        {navLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "flex items-center gap-4 px-4 py-3 transition-all text-sm font-bold rounded-lg",
+              pathname === link.href ? "bg-primary text-white shadow-lg" : "text-slate-800 hover:bg-slate-100"
+            )}
+          >
+            <link.icon className="w-5 h-5" />
+            <span>{link.label}</span>
+          </Link>
+        ))}
+        <p className="px-3 pt-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">Tools</p>
+        {toolLinks.map((tool) => (
+          <Link
+            key={tool.href}
+            href={tool.href}
+            className={cn(
+              "flex items-center gap-4 px-4 py-3 transition-all text-sm font-bold rounded-lg",
+              pathname === tool.href ? "bg-primary text-white shadow-lg" : "text-slate-800 hover:bg-slate-100"
+            )}
+          >
+            <tool.icon className="w-5 h-5" />
+            <span>{tool.label}</span>
+          </Link>
+        ))}
+      </nav>
+      <div className="p-4 border-t border-slate-200">
+        <button 
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 px-4 py-3 text-sm font-bold rounded-lg text-red-600 hover:bg-red-50"
+        >
+          <LogOut className="h-5 w-5" />
+          <span>End Session</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  const userMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-2 rounded-full p-1 pr-3 hover:bg-slate-100 transition-colors">
+          <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center border border-slate-300/50">
+            <ShieldCheck className="w-5 h-5 text-slate-600" />
+          </div>
+          <span className="text-sm font-bold text-slate-700 hidden sm:inline">Admin</span>
+          <ChevronDown className="w-4 h-4 text-slate-500" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64 rounded-xl p-2 shadow-xl mt-2">
+        <div className="px-2 py-2">
+          <p className="text-xs font-bold text-slate-400 uppercase">Authenticated User</p>
+          <p className="text-sm font-semibold text-slate-800 truncate mt-1">{user?.email}</p>
+        </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-bold focus:text-red-500 focus:bg-red-50 cursor-pointer rounded-lg h-10 px-2">
+          <LogOut className="w-4 h-4 mr-2" />
+          End Session
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] flex flex-col font-body">
-      <div className="w-full pt-4 px-4">
-        <header className="w-full bg-gradient-to-r from-[#1e3a8a] to-[#064e3b] text-white shadow-xl h-16 flex items-center justify-between px-6 z-50 rounded-2xl">
-          <div className="flex items-center gap-10">
-            <Link href="/admin/dashboard" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-sm">
-                <Icons.Logo className="w-6 h-6" />
-              </div>
-              <span className="font-bold text-xl tracking-tight whitespace-nowrap">Wallet Tally Admin</span>
-            </Link>
+    <>
+      <aside className={cn(
+        "fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <SidebarContent />
+      </aside>
+      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-40 lg:hidden" />}
 
-            <nav className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 transition-all text-sm font-bold rounded-lg",
-                    pathname === link.href
-                      ? "bg-white/20 text-white shadow-inner" 
-                      : "text-white/80 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </Link>
-              ))}
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className={cn(
-                    "flex items-center gap-2 px-4 py-2 transition-all text-sm font-bold rounded-lg outline-none",
-                    pathname.startsWith('/admin/tools')
-                      ? "bg-white/20 text-white shadow-inner"
-                      : "text-white/80 hover:text-white hover:bg-white/10"
-                  )}>
-                    <Wrench className="w-4 h-4" />
-                    Tools
-                    <ChevronDown className="w-3 h-3 opacity-50" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-64 rounded-2xl p-2 shadow-2xl border-0 mt-2 bg-white">
-                  <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-2">System Checks</DropdownMenuLabel>
-                  {toolLinks.filter(t => t.group === 'System Checks').map(tool => (
-                    <DropdownMenuItem key={tool.href} asChild>
-                      <Link href={tool.href} className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors group">
-                        <tool.icon className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
-                        <span className="font-bold text-slate-700 text-sm">{tool.label}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator className="my-2 bg-slate-50" />
-                  <DropdownMenuLabel className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-3 py-2">Maintenance</DropdownMenuLabel>
-                  {toolLinks.filter(t => t.group === 'Maintenance').map(tool => (
-                    <DropdownMenuItem key={tool.href} asChild>
-                      <Link href={tool.href} className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors group">
-                        <tool.icon className="w-4 h-4 text-slate-400 group-hover:text-primary transition-colors" />
-                        <span className="font-bold text-slate-700 text-sm">{tool.label}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="lg:hidden text-white hover:bg-white/10">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 border-0 w-72 bg-gradient-to-b from-[#1e3a8a] to-[#064e3b] text-white">
-                <SheetHeader className="p-6 border-b border-white/10 text-left">
-                  <SheetTitle className="text-white flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white rounded flex items-center justify-center shadow-sm">
-                      <Icons.Logo className="w-6 h-6" />
-                    </div>
-                    <span className="font-bold text-xl">Wallet Tally</span>
-                  </SheetTitle>
-                </SheetHeader>
-                <nav className="p-4 space-y-2">
-                  {navLinks.map((link) => (
-                    <Link
-                      key={link.href}
-                      href={link.href}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all",
-                        pathname === link.href
-                          ? "bg-white/20 text-white shadow-inner"
-                          : "text-white/70 hover:text-white hover:bg-white/10"
-                      )}
-                    >
-                      <link.icon className="h-5 w-5" />
-                      {link.label}
-                    </Link>
-                  ))}
-                  
-                  <div className="pt-2">
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] px-4 py-3">Tools & Maintenance</p>
-                    {toolLinks.map((tool) => (
-                      <Link
-                        key={tool.href}
-                        href={tool.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={cn(
-                          "flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all",
-                          pathname === tool.href
-                            ? "bg-white/20 text-white shadow-inner"
-                            : "text-white/70 hover:text-white hover:bg-white/10"
-                        )}
-                      >
-                        <tool.icon className="h-5 w-5" />
-                        {tool.label}
-                      </Link>
-                    ))}
-                  </div>
-
-                  <div className="pt-4 mt-4 border-t border-white/10">
-                    <button 
-                      onClick={handleLogout}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl text-red-300 hover:text-red-200 hover:bg-white/10 transition-all"
-                    >
-                      <LogOut className="h-5 w-5" />
-                      End Session
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm">
+        <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          
+          {/* Desktop Header */}
+          <div className="hidden lg:flex w-full items-center justify-between">
+            <div className="flex items-center gap-6">
+              <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+                <Icons.Logo className="h-8 w-8 text-primary" />
+                <span className="font-bold text-xl tracking-tight text-slate-800">Wallet Tally</span>
+              </Link>
+              <nav className="flex items-center gap-1.5">
+                {navLinks.map((link) => (
+                  <TopNavLink key={link.href} href={link.href} currentPath={pathname}>
+                    {link.label}
+                  </TopNavLink>
+                ))}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-md">
+                      <Settings className="w-4 h-4" />
+                      Tools
+                      <ChevronDown className="w-4 h-4 opacity-70" />
                     </button>
-                  </div>
-                </nav>
-              </SheetContent>
-            </Sheet>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-xl hover:bg-white/10 transition-colors focus:outline-none">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-5 h-5 text-white" />
-                    <span className="text-sm font-bold text-white whitespace-nowrap hidden sm:inline">Admin User</span>
-                  </div>
-                  <ChevronDown className="w-4 h-4 opacity-60" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2 shadow-2xl border-0 mt-2 bg-white">
-                <div className="px-4 py-3 border-b border-slate-50 mb-1">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Admin Control</p>
-                   <p className="text-xs font-bold text-slate-700 mt-1 truncate">Session Status: Active</p>
-                </div>
-                <DropdownMenuItem onClick={handleLogout} className="text-red-500 font-bold focus:text-red-500 focus:bg-red-50 cursor-pointer rounded-xl h-11 px-4">
-                  <LogOut className="w-4 h-4 mr-2" /> End Session
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56 rounded-xl p-1.5 shadow-xl mt-2">
+                    {toolLinks.map(link => (
+                      <DropdownMenuItem key={link.href} asChild>
+                        <Link href={link.href} className={cn("flex items-center gap-3 h-10 cursor-pointer font-semibold", pathname === link.href && "bg-slate-100")}>
+                          <link.icon className="w-4 h-4 text-slate-500" />
+                          {link.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </nav>
+            </div>
+            {userMenu}
           </div>
-        </header>
-      </div>
 
-      <main className="flex-1 container mx-auto p-4 md:p-10 space-y-6">
-        <div className="pb-12">
-          {children}
+          {/* Mobile Header */}
+          <div className="lg:hidden w-full flex items-center justify-between">
+            <div>
+              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-700">
+                <Menu className="w-6 h-6" />
+              </button>
+            </div>
+            <div>
+              <Link href="/admin/dashboard">
+                <Icons.Logo className="h-8 w-8 text-primary" />
+              </Link>
+            </div>
+            <div>
+              {userMenu}
+            </div>
+          </div>
+
         </div>
+      </header>
+
+      <main className="container mx-auto max-w-7xl flex-1 w-full p-4 sm:p-6 lg:p-8">
+        {children}
       </main>
-    </div>
+    </>
   );
 }
