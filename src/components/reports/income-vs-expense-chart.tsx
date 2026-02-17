@@ -15,23 +15,13 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { transactions } from '@/lib/data';
-import { endOfMonth, format, startOfMonth } from 'date-fns';
+import { format } from 'date-fns';
+import { useMemo } from 'react';
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from 'recharts';
 
-const monthlyData = transactions.reduce((acc, t) => {
-  const month = format(t.date, 'MMM');
-  if (!acc[month]) {
-    acc[month] = { income: 0, expense: 0 };
-  }
-  acc[month][t.type] += t.amount;
-  return acc;
-}, {} as Record<string, { income: number; expense: number }>);
-
-const chartData = Object.entries(monthlyData).map(([month, data]) => ({
-  month,
-  ...data,
-}));
+interface IncomeVsExpenseChartProps {
+  transactions: any[];
+}
 
 const chartConfig = {
   income: {
@@ -44,7 +34,24 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export function IncomeVsExpenseChart() {
+export function IncomeVsExpenseChart({ transactions }: IncomeVsExpenseChartProps) {
+  const chartData = useMemo(() => {
+    const monthlyData = transactions.reduce((acc, t) => {
+      const date = t.date.toDate ? t.date.toDate() : new Date(t.date);
+      const month = format(date, 'MMM');
+      if (!acc[month]) {
+        acc[month] = { income: 0, expense: 0 };
+      }
+      acc[month][t.type] += t.amount;
+      return acc;
+    }, {} as Record<string, { income: number; expense: number }>);
+
+    return Object.entries(monthlyData).map(([month, data]: [string, { income: number; expense: number }]) => ({
+      month,
+      ...data,
+    }));
+  }, [transactions]);
+
   return (
     <Card>
       <CardHeader>
