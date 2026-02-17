@@ -3,8 +3,9 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Icons } from '@/components/icons';
+import { Suspense } from 'react';
 
-export default function VerifyEmailPage() {
+function VerifyEmail() {
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
 
@@ -36,4 +37,12 @@ export default function VerifyEmailPage() {
       </div>
     </div>
   );
+}
+
+export default function VerifyEmailPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <VerifyEmail />
+        </Suspense>
+    )
 }

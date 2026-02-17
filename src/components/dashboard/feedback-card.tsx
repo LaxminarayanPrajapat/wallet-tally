@@ -6,14 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Star, Send, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 export function FeedbackCard() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
   
   const feedbackDocRef = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -47,15 +46,16 @@ export function FeedbackCard() {
         updatedAt: serverTimestamp(),
       }, { merge: true });
 
-      toast({
-        title: "Feedback Saved",
-        description: "Your feedback has been updated successfully!",
+      Swal.fire({
+        icon: 'success',
+        title: 'Feedback Saved',
+        text: 'Your feedback has been updated successfully!',
       });
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save feedback. Please try again.",
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to save feedback. Please try again.',
       });
     } finally {
       setIsSubmitting(false);

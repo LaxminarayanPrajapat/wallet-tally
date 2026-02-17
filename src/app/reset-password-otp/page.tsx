@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,10 @@ import Link from 'next/link';
 import { Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { sendPasswordResetOtpEmail } from '@/app/actions/email';
 
-export default function ResetPasswordOtpPage() {
+function ResetPasswordOtp() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
-  const { toast } = useToast();
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(60);
   const [isResendDisabled, setIsResendDisabled] = useState(true);
@@ -25,14 +24,13 @@ export default function ResetPasswordOtpPage() {
   useEffect(() => {
     const resetData = sessionStorage.getItem('resetPasswordData');
     if (!email || !resetData) {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'warning',
         title: 'Invalid Access',
-        description: 'Please request a password reset first.',
-      });
-      router.push('/forgot-password');
+        text: 'Please request a password reset first.',
+      }).then(() => router.push('/forgot-password'));
     }
-  }, [email, router, toast]);
+  }, [email, router]);
 
   useEffect(() => {
     if (timer > 0) {
@@ -49,18 +47,19 @@ export default function ResetPasswordOtpPage() {
 
     if (storedOtp && otp === storedOtp) {
       setIsVerifying(true);
-      setTimeout(() => {
-        toast({
-          title: 'Identity Verified',
-          description: 'You can now set a new password for your account.',
-        });
-        router.push('/reset-password');
-      }, 1000);
+      await Swal.fire({
+        icon: 'success',
+        title: 'Identity Verified',
+        text: 'You can now set a new password for your account.',
+        timer: 2000,
+        showConfirmButton: false,
+      });
+      router.push('/reset-password');
     } else {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Invalid Code',
-        description: 'The verification code you entered is incorrect.',
+        text: 'The verification code you entered is incorrect.',
       });
     }
   };
@@ -78,9 +77,16 @@ export default function ResetPasswordOtpPage() {
       sessionStorage.setItem('resetOtp', newOtp);
       setTimer(60);
       setIsResendDisabled(true);
-      toast({
+      Swal.fire({
+        icon: 'success',
         title: 'Code Resent',
-        description: `A new reset code has been sent to ${email}.`,
+        text: `A new reset code has been sent to ${email}.`,
+      });
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'Resend Failed',
+        text: result.error || 'An unexpected error occurred.',
       });
     }
     setIsSending(false);
@@ -160,4 +166,12 @@ export default function ResetPasswordOtpPage() {
       </div>
     </div>
   );
+}
+
+export default function ResetPasswordOtpPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <ResetPasswordOtp />
+        </Suspense>
+    )
 }

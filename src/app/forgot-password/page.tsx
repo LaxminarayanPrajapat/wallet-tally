@@ -8,13 +8,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { User, Mail, ArrowLeft, Send, Loader2 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 import { useFirestore } from '@/firebase';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
 import { sendPasswordResetOtpEmail } from '@/app/actions/email';
 
 const formSchema = z.object({
@@ -22,7 +22,6 @@ const formSchema = z.object({
 });
 
 export default function ForgotPasswordPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const firestore = useFirestore();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,7 +40,6 @@ export default function ForgotPasswordPage() {
       let userName = 'User';
       let userId = '';
 
-      // 1. Resolve identifier to email and find user
       const usersRef = collection(firestore, 'users');
       let q;
       
@@ -54,10 +52,10 @@ export default function ForgotPasswordPage() {
       const querySnapshot = await getDocs(q);
       
       if (querySnapshot.empty) {
-        toast({
-          variant: 'destructive',
+        Swal.fire({
+          icon: 'error',
           title: 'Account Not Found',
-          description: 'We could not find an account associated with that identifier.',
+          text: 'We could not find an account associated with that identifier.',
         });
         setIsLoading(false);
         return;
@@ -70,16 +68,15 @@ export default function ForgotPasswordPage() {
       userId = userDoc.id;
 
       if (email.includes('@wallet-tally.internal')) {
-        toast({
-          variant: 'destructive',
+        Swal.fire({
+          icon: 'warning',
           title: 'Email Required',
-          description: 'This account was registered without an external email. Please contact support for password recovery.',
+          text: 'This account was registered without an external email. Please contact support for password recovery.',
         });
         setIsLoading(false);
         return;
       }
 
-      // 2. Generate and Send OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       sessionStorage.setItem('resetPasswordData', JSON.stringify({ email, userName, userId }));
       sessionStorage.setItem('resetOtp', otp);
@@ -87,19 +84,20 @@ export default function ForgotPasswordPage() {
       const result = await sendPasswordResetOtpEmail(email, otp, userName);
 
       if (result.success) {
-        toast({
+        await Swal.fire({
+          icon: 'success',
           title: 'Verification Code Sent',
-          description: `A 6-digit reset code has been sent to ${email}.`,
+          text: `A 6-digit reset code has been sent to ${email}.`,
         });
         router.push(`/reset-password-otp?email=${encodeURIComponent(email)}`);
       } else {
         throw new Error(result.error || 'Failed to send reset email.');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Request Failed',
-        description: error.message || 'An unexpected error occurred.',
+        text: error.message || 'An unexpected error occurred.',
       });
     } finally {
       setIsLoading(false);

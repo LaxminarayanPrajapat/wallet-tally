@@ -7,13 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useUser } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
 import { sendTestEmail } from '@/app/actions/email';
 import { cn } from '@/lib/utils';
+import Swal from 'sweetalert2';
 
 export default function EmailConnectionPage() {
   const { user } = useUser();
-  const { toast } = useToast();
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [recipientEmail, setRecipientEmail] = useState('');
@@ -26,11 +25,7 @@ export default function EmailConnectionPage() {
 
   const handleTestConnection = async () => {
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      toast({ 
-        variant: 'destructive', 
-        title: 'Recipient Required', 
-        description: 'Please provide a valid email address for the diagnostic.' 
-      });
+      Swal.fire('Recipient Required', 'Please provide a valid email address for the diagnostic.', 'warning');
       return;
     }
 
@@ -40,14 +35,14 @@ export default function EmailConnectionPage() {
       const result = await sendTestEmail(recipientEmail, user?.displayName || 'Admin');
       if (result.success) {
         setStatus('success');
-        toast({ title: 'Success', description: `Test email dispatched to ${recipientEmail}` });
+        Swal.fire('Success!', `Test email dispatched to ${recipientEmail}`, 'success');
       } else {
         throw new Error(result.error);
       }
     } catch (err: any) {
       setStatus('error');
       setErrorDetails(err.message);
-      toast({ variant: 'destructive', title: 'SMTP Error', description: err.message });
+      Swal.fire('SMTP Error', err.message, 'error');
     }
   };
 
@@ -81,24 +76,26 @@ export default function EmailConnectionPage() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                     <Label htmlFor="test-email" className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Recipient Email</Label>
-                    <Input 
-                        id="test-email"
-                        type="email"
-                        placeholder="name@example.com"
-                        className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white font-semibold"
-                        value={recipientEmail}
-                        onChange={(e) => setRecipientEmail(e.target.value)}
-                        disabled={status === 'sending'}
-                    />
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Input 
+                          id="test-email"
+                          type="email"
+                          placeholder="name@example.com"
+                          className="h-11 rounded-lg border-slate-200 bg-slate-50 focus:bg-white font-semibold flex-grow"
+                          value={recipientEmail}
+                          onChange={(e) => setRecipientEmail(e.target.value)}
+                          disabled={status === 'sending'}
+                      />
+                      <Button 
+                      onClick={handleTestConnection}
+                      disabled={status === 'sending'}
+                      className="w-full sm:w-auto h-11 bg-gradient-to-r from-primary to-accent text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 border-0 active:scale-95 transition-all px-6"
+                      >
+                      {status === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      Dispatch
+                      </Button>
                     </div>
-                    <Button 
-                    onClick={handleTestConnection}
-                    disabled={status === 'sending'}
-                    className="w-full h-11 bg-gradient-to-r from-primary to-accent text-white font-bold rounded-lg shadow-sm flex items-center justify-center gap-2 border-0 active:scale-95 transition-all"
-                    >
-                    {status === 'sending' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                    Dispatch Diagnostic Email
-                    </Button>
+                    </div>
                 </div>
                 </CardContent>
             </Card>

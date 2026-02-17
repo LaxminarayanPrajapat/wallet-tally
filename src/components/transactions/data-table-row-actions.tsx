@@ -50,7 +50,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useUser, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, Timestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 import { useCurrencySymbol } from '@/hooks/use-currency';
 import { categories } from '@/lib/data';
 import { cn } from '@/lib/utils';
@@ -72,7 +72,6 @@ export function DataTableRowActions<TData>({
   const transaction = row.original as any;
   const firestore = useFirestore();
   const { user } = useUser();
-  const { toast } = useToast();
   const currencySymbol = useCurrencySymbol();
 
   const [isViewOpen, setIsViewOpen] = useState(false);
@@ -119,10 +118,11 @@ export function DataTableRowActions<TData>({
     if (!user || !firestore || !transaction.id || isExpired) return;
     const docRef = doc(firestore, 'users', user.uid, 'transactions', transaction.id);
     deleteDocumentNonBlocking(docRef);
-    toast({
-      title: "Transaction Deleted",
-      description: "The record has been removed from your history.",
-    });
+    Swal.fire({
+        icon: 'success',
+        title: "Transaction Deleted",
+        text: "The record has been removed from your history.",
+      });
   };
 
   const onEditSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -136,17 +136,18 @@ export function DataTableRowActions<TData>({
         category: values.categoryName,
         description: values.description || '',
       });
-      toast({
+      Swal.fire({
+        icon: 'success',
         title: "Transaction Updated",
-        description: "The changes have been saved successfully.",
+        text: "The changes have been saved successfully.",
       });
       setIsEditOpen(false);
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Update Failed",
-        description: "Could not save changes. Please try again.",
-      });
+        Swal.fire({
+            icon: 'error',
+            title: "Update Failed",
+            text: "Could not save changes. Please try again.",
+          });
     } finally {
       setIsSubmitting(false);
     }

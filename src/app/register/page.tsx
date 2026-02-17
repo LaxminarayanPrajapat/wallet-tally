@@ -7,8 +7,8 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { fetchSignInMethodsForEmail, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { fetchSignInMethodsForEmail } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { 
   Loader2, 
   User, 
@@ -22,6 +22,7 @@ import {
   Check,
   Pencil
 } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
@@ -50,13 +51,11 @@ import {
   DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useToast } from '@/hooks/use-toast';
 import { countries } from '@/lib/countries';
 import { useAuth, useFirestore } from '@/firebase';
 import { sendOtpEmail } from '@/app/actions/email';
 import { cn } from '@/lib/utils';
 
-// Curated seeds representing the requested personas:
 const AVATAR_SEEDS = [
   "Aiden", "Maya", "Liam", "Zoe", "Leo", 
   "Mason", "Sophia", "James", "Elena", "Xavier",
@@ -86,7 +85,6 @@ const formSchema = z
   });
 
 export default function RegisterPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
@@ -123,7 +121,6 @@ export default function RegisterPage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      // 1. Check if Username is taken
       const usersRef = collection(firestore, 'users');
       const q = query(usersRef, where('name', '==', values.username));
       const querySnapshot = await getDocs(q);
@@ -134,7 +131,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Email Path: Check uniqueness and send OTP
       const signInMethods = await fetchSignInMethodsForEmail(auth, values.email);
       if (signInMethods.length > 0) {
         form.setError('email', { type: 'manual', message: 'This email address is already in use.' });
@@ -149,16 +145,20 @@ export default function RegisterPage() {
       const result = await sendOtpEmail(values.email, otp);
 
       if (result.success) {
-        toast({ title: 'Verification Code Sent', description: `A 6-digit code has been sent to ${values.email}.` });
+        await Swal.fire({
+          icon: 'success',
+          title: 'Verification Code Sent',
+          text: `A 6-digit code has been sent to ${values.email}.`,
+        });
         router.push(`/otp-verification?email=${encodeURIComponent(values.email)}`);
       } else {
         throw new Error(result.error || 'Failed to send verification email.');
       }
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Registration Error',
-        description: error.message || 'An unexpected error occurred.',
+        text: error.message || 'An unexpected error occurred.',
       });
     } finally {
       setIsLoading(false);

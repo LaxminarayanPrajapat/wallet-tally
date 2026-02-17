@@ -54,6 +54,16 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, isUserLoading } = useUser();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
+
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   useEffect(() => {
     if (isUserLoading) return;
@@ -66,18 +76,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [user, isUserLoading, router]);
 
   useEffect(() => {
-    if (isSidebarOpen) setIsSidebarOpen(false);
+    if (isSidebarOpen) {
+      setIsSidebarOpen(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) setIsSidebarOpen(false);
-    };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   const handleLogout = async () => {
     localStorage.removeItem('isAdmin');
@@ -112,7 +115,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="flex flex-col h-full bg-white">
       <div className="flex items-center justify-between h-16 px-4 border-b border-slate-200">
         <Link href="/admin/dashboard" className="flex items-center gap-3">
-          <Icons.Logo className="h-8 w-8 text-primary" />
+          <Icons.Logo className="h-8 w-8" />
           <span className="font-bold text-lg text-primary tracking-tight">Admin Panel</span>
         </Link>
         <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-500 hover:bg-slate-100 rounded-md">
@@ -186,73 +189,80 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     </DropdownMenu>
   );
 
+  const desktopHeader = (
+    <div className="w-full flex items-center justify-between">
+      <div className="flex items-center gap-6">
+        <Link href="/admin/dashboard" className="flex items-center gap-2.5">
+          <Icons.Logo className="h-8 w-8" />
+          <span className="font-bold text-xl tracking-tight text-slate-800">Wallet Tally</span>
+        </Link>
+        <nav className="flex items-center gap-1.5">
+          {navLinks.map((link) => (
+            <TopNavLink key={link.href} href={link.href} currentPath={pathname}>
+              {link.label}
+            </TopNavLink>
+          ))}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-md">
+                <Settings className="w-4 h-4" />
+                Tools
+                <ChevronDown className="w-4 h-4 opacity-70" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 rounded-xl p-1.5 shadow-xl mt-2">
+              {toolLinks.map(link => (
+                <DropdownMenuItem key={link.href} asChild>
+                  <Link href={link.href} className={cn("flex items-center gap-3 h-10 cursor-pointer font-semibold", pathname === link.href && "bg-slate-100")}>
+                    <link.icon className="w-4 h-4 text-slate-500" />
+                    {link.label}
+                  </Link>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </nav>
+      </div>
+      {userMenu}
+    </div>
+  );
+
+  const mobileHeader = (
+    <div className="w-full flex items-center justify-between">
+      <div className="flex-1 flex justify-start">
+        <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-700">
+          <Menu className="w-6 h-6" />
+        </button>
+      </div>
+      <div className="flex-1 flex justify-center">
+        <Link href="/admin/dashboard">
+          <Icons.Logo className="h-8 w-8" />
+        </Link>
+      </div>
+      <div className="flex-1 flex justify-end">
+        {userMenu}
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <aside className={cn(
-        "fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-xl transition-transform duration-300 ease-in-out lg:hidden",
-        isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
-        <SidebarContent />
-      </aside>
-      {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-40 lg:hidden" />}
+      {/* Conditionally render sidebar and overlay only on mobile */}
+      {!isDesktop && (
+        <>
+          <aside className={cn(
+            "fixed top-0 left-0 z-50 h-full w-72 bg-white shadow-xl transition-transform duration-300 ease-in-out",
+            isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}>
+            <SidebarContent />
+          </aside>
+          {isSidebarOpen && <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-black/60 z-40" />}
+        </>
+      )}
 
       <header className="sticky top-0 z-30 w-full border-b border-slate-200 bg-white/95 backdrop-blur-sm">
         <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          
-          {/* Desktop Header */}
-          <div className="hidden lg:flex w-full items-center justify-between">
-            <div className="flex items-center gap-6">
-              <Link href="/admin/dashboard" className="flex items-center gap-2.5">
-                <Icons.Logo className="h-8 w-8 text-primary" />
-                <span className="font-bold text-xl tracking-tight text-slate-800">Wallet Tally</span>
-              </Link>
-              <nav className="flex items-center gap-1.5">
-                {navLinks.map((link) => (
-                  <TopNavLink key={link.href} href={link.href} currentPath={pathname}>
-                    {link.label}
-                  </TopNavLink>
-                ))}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-1 px-3 py-1.5 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-md">
-                      <Settings className="w-4 h-4" />
-                      Tools
-                      <ChevronDown className="w-4 h-4 opacity-70" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-56 rounded-xl p-1.5 shadow-xl mt-2">
-                    {toolLinks.map(link => (
-                      <DropdownMenuItem key={link.href} asChild>
-                        <Link href={link.href} className={cn("flex items-center gap-3 h-10 cursor-pointer font-semibold", pathname === link.href && "bg-slate-100")}>
-                          <link.icon className="w-4 h-4 text-slate-500" />
-                          {link.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </nav>
-            </div>
-            {userMenu}
-          </div>
-
-          {/* Mobile Header */}
-          <div className="lg:hidden w-full flex items-center justify-between">
-            <div>
-              <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-700">
-                <Menu className="w-6 h-6" />
-              </button>
-            </div>
-            <div>
-              <Link href="/admin/dashboard">
-                <Icons.Logo className="h-8 w-8 text-primary" />
-              </Link>
-            </div>
-            <div>
-              {userMenu}
-            </div>
-          </div>
-
+          {isDesktop ? desktopHeader : mobileHeader}
         </div>
       </header>
 

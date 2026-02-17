@@ -5,39 +5,30 @@ import { ShieldAlert, Loader2, Info, CheckCircle2, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import Swal from 'sweetalert2';
 import { useFirestore, useUser } from '@/firebase';
 import { collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
 import { subDays } from 'date-fns';
 
 export default function DatabaseCleanupPage() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
   
   const [isCleaning, setIsCleaning] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
 
   const purgeOldLogs = async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) {
+        Swal.fire('Error!', 'User or database context is missing.', 'error');
+        return;
+    };
     
     setIsCleaning(true);
     setLastAction(null);
     try {
       const thirtyDaysAgo = subDays(new Date(), 30);
       const logsRef = collection(firestore, 'email_logs');
-      const q = query(logsRef, where('sentAt', '<', thirtyDaysAgo.toISOString()));
+      const q = query(logsRef, where('sentAt', '<', thirtyDaysAgo));
       
       const snapshot = await getDocs(q);
       const batch = writeBatch(firestore);
@@ -51,17 +42,38 @@ export default function DatabaseCleanupPage() {
       if (count > 0) {
         await batch.commit();
         setLastAction(`Successfully purged ${count} legacy email logs.`);
-        toast({ title: 'Maintenance Complete', description: `${count} old logs removed.` });
+        Swal.fire('Success!', `${count} old logs removed.`, 'success');
       } else {
         setLastAction('No legacy logs found (30+ days old).');
-        toast({ title: 'System Clean', description: 'No records matched the purge criteria.' });
+        Swal.fire('All Clean!', 'No records matched the purge criteria.', 'info');
       }
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Cleanup Failed', description: err.message });
+      Swal.fire('Cleanup Failed!', err.message, 'error');
       setLastAction(`Error during cleanup: ${err.message}`);
     } finally {
       setIsCleaning(false);
     }
+  };
+
+  const handlePurgeClick = () => {
+    Swal.fire({
+      title: 'Are you absolutely sure?',
+      text: "This will permanently delete all email logs older than 30 days. This action cannot be undone.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3b82f6',
+      confirmButtonText: 'Yes, Purge Logs',
+      customClass: {
+        popup: 'rounded-2xl shadow-lg',
+        title: 'text-slate-800',
+        htmlContainer: 'text-slate-600',
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        purgeOldLogs();
+      }
+    });
   };
 
   return (
@@ -75,32 +87,15 @@ export default function DatabaseCleanupPage() {
                     <CardTitle className="font-bold text-slate-800 text-lg">Manual Data Purge</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                            variant="outline"
-                            disabled={isCleaning}
-                            className="w-full h-11 font-bold text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                        >
-                            {isCleaning ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Trash2 className="w-5 h-5 mr-2" />}
-                            Purge Legacy Email Logs
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="rounded-2xl">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete all email logs older than 30 days. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={purgeOldLogs} className="bg-red-600 hover:bg-red-700">
-                            Yes, Purge Logs
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <Button 
+                        variant="outline"
+                        disabled={isCleaning}
+                        onClick={handlePurgeClick}
+                        className="w-full h-11 font-bold text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                    >
+                        {isCleaning ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Trash2 className="w-5 h-5 mr-2" />}
+                        Purge Legacy Email Logs
+                    </Button>
                     <p className="text-xs text-slate-500 mt-3 text-center">
                         Purge email communication logs older than 30 days.
                     </p>

@@ -1,9 +1,8 @@
-
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,11 +14,10 @@ import { doc, setDoc } from 'firebase/firestore';
 import { sendOtpEmail } from '@/app/actions/email';
 import { Loader2 } from 'lucide-react';
 
-export default function OtpVerificationPage() {
+function OtpVerification() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get('email');
-  const { toast } = useToast();
   const [otp, setOtp] = useState('');
   const [timer, setTimer] = useState(60);
   const [isResendDisabled, setIsResendDisabled] = useState(true);
@@ -31,14 +29,15 @@ export default function OtpVerificationPage() {
   useEffect(() => {
     const registrationData = sessionStorage.getItem('registrationData');
     if (!email || !registrationData) {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'warning',
         title: 'Invalid Access',
-        description: 'Please go through the registration process first.',
+        text: 'Please go through the registration process first.',
+      }).then(() => {
+        router.push('/register');
       });
-      router.push('/register');
     }
-  }, [email, router, toast]);
+  }, [email, router]);
 
   useEffect(() => {
     if (timer > 0) {
@@ -65,13 +64,11 @@ export default function OtpVerificationPage() {
         );
         const user = userCredential.user;
 
-        // Update Firebase Auth Profile
         await updateProfile(user, {
           displayName: registrationData.username,
           photoURL: registrationData.photoURL
         });
 
-        // Store User in Firestore with Country
         await setDoc(doc(firestore, 'users', user.uid), {
           id: user.uid,
           email: user.email,
@@ -82,28 +79,31 @@ export default function OtpVerificationPage() {
 
         localStorage.setItem('currencySymbol', registrationData.currency);
 
-        toast({
+        await Swal.fire({
+          icon: 'success',
           title: 'Email Verified!',
-          description: 'Your account has been created successfully.',
+          text: 'Your account has been created successfully.',
+          timer: 2000,
+          showConfirmButton: false,
         });
 
         sessionStorage.removeItem('otp');
         sessionStorage.removeItem('registrationData');
         router.push('/dashboard');
       } catch (error: any) {
-        toast({
-          variant: 'destructive',
+        Swal.fire({
+          icon: 'error',
           title: 'Registration Failed',
-          description: error.message || 'An unexpected error occurred.',
+          text: error.message || 'An unexpected error occurred.',
         });
       } finally {
         setIsVerifying(false);
       }
     } else {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Invalid OTP',
-        description: 'The OTP you entered is incorrect.',
+        text: 'The OTP you entered is incorrect.',
       });
     }
   };
@@ -121,10 +121,17 @@ export default function OtpVerificationPage() {
       sessionStorage.setItem('otp', newOtp);
       setTimer(60);
       setIsResendDisabled(true);
-      toast({
+      Swal.fire({
+        icon: 'success',
         title: 'OTP Resent',
-        description: `A new verification code has been sent to ${registrationData.email}.`,
+        text: `A new verification code has been sent to ${registrationData.email}.`,
       });
+    } else {
+        Swal.fire({
+            icon: 'error',
+            title: 'Failed to Resend',
+            text: result.error || 'Could not send a new OTP.'
+        });
     }
     setIsSending(false);
   };
@@ -195,4 +202,12 @@ export default function OtpVerificationPage() {
       </div>
     </div>
   );
+}
+
+export default function OtpVerificationPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <OtpVerification />
+        </Suspense>
+    )
 }

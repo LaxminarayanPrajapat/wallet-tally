@@ -35,7 +35,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 
 const formSchema = z.object({
   type: z.enum(['income', 'expense']),
@@ -58,7 +58,6 @@ export function AddTransactionSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const firestore = useFirestore();
   const { user } = useUser();
-  const { toast } = useToast();
 
   const transactionsQuery = useMemoFirebase(() => {
     if (!firestore || !user) return null;
@@ -95,10 +94,10 @@ export function AddTransactionSheet({
     if (!user) return;
 
     if (values.type === 'expense' && values.amount > currentBalance) {
-      toast({
-        variant: "destructive",
-        title: "Insufficient Balance",
-        description: `Your current balance is ${currencySymbol || '₹'}${currentBalance.toFixed(2)}. You cannot spend more than you have.`,
+      Swal.fire({
+        icon: 'error',
+        title: 'Insufficient Balance',
+        text: `Your current balance is ${currencySymbol || '₹'}${currentBalance.toFixed(2)}. You cannot spend more than you have.`,
       });
       return;
     }
@@ -115,17 +114,18 @@ export function AddTransactionSheet({
         date: serverTimestamp(),
       });
 
-      toast({
-        title: "Success",
-        description: `${values.type === 'income' ? 'Income' : 'Expense'} recorded successfully.`,
+      Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: `${values.type === 'income' ? 'Income' : 'Expense'} recorded successfully.`,
       });
       setOpen(false);
       form.reset();
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save transaction. Please try again.",
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: "Failed to save transaction. Please try again.",
       });
     } finally {
       setIsSubmitting(false);

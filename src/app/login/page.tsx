@@ -16,13 +16,13 @@ import {
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { User, Lock, Eye, EyeOff, LogIn, Key, Loader2 } from 'lucide-react';
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 
 import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
 import { useAuth, useFirestore } from '@/firebase';
 
 const formSchema = z.object({
@@ -32,7 +32,6 @@ const formSchema = z.object({
 });
 
 export default function LoginPage() {
-  const { toast } = useToast();
   const router = useRouter();
   const auth = useAuth();
   const firestore = useFirestore();
@@ -51,62 +50,58 @@ export default function LoginPage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      // Configure persistence based on "Remember Me"
       const persistence = values.rememberMe ? browserLocalPersistence : browserSessionPersistence;
       await setPersistence(auth, persistence);
 
-      // Hardcoded Admin Login Check
       if (values.loginId === 'WalletTallyAdmin' && values.password === 'WTA@1908') {
         await signInAnonymously(auth);
         localStorage.setItem('isAdmin', 'true');
-        toast({
+        await Swal.fire({
+          icon: 'success',
           title: 'Admin Login Successful',
-          description: 'Welcome to the Admin Dashboard!',
+          text: 'Welcome to the Admin Dashboard!',
+          timer: 2000,
+          showConfirmButton: false,
         });
         router.push('/admin/dashboard');
         return;
       }
 
       let emailToUse = values.loginId;
-
-      // Robust Username vs Email detection
       if (!values.loginId.includes('@')) {
-        // Resolve username to email via Firestore lookup
         const usersRef = collection(firestore, 'users');
         const q = query(usersRef, where('name', '==', values.loginId));
         const querySnapshot = await getDocs(q);
         
         if (querySnapshot.empty) {
-          // Check for internal virtual username format
           emailToUse = `${values.loginId}@wallet-tally.internal`;
         } else {
           emailToUse = querySnapshot.docs[0].data().email;
         }
       }
 
-      // Standard User Login
       const userCredential = await signInWithEmailAndPassword(auth, emailToUse, values.password);
       const user = userCredential.user;
 
-      // CRITICAL: Check if user profile exists in Firestore (Validation against deleted accounts)
       const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-      
       if (!userDoc.exists()) {
-        // If profile is deleted from Firestore, deny access
         await signOut(auth);
-        toast({
-          variant: 'destructive',
+        await Swal.fire({
+          icon: 'error',
           title: 'Access Denied',
-          description: 'This account has been deactivated or removed by an administrator.',
+          text: 'This account has been deactivated or removed by an administrator.',
         });
         setIsLoading(false);
         return;
       }
 
       localStorage.setItem('isAdmin', 'false');
-      toast({
+      await Swal.fire({
+        icon: 'success',
         title: 'Login Successful',
-        description: 'Welcome back!',
+        text: 'Welcome back!',
+        timer: 1500,
+        showConfirmButton: false,
       });
       router.push('/dashboard');
     } catch (error: any) {
@@ -119,10 +114,10 @@ export default function LoginPage() {
       ) {
         description = 'Invalid username/email or password.';
       }
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Login Failed',
-        description,
+        text: description,
       });
     } finally {
       setIsLoading(false);

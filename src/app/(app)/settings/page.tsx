@@ -25,9 +25,9 @@ import {
   Check 
 } from 'lucide-react';
 import { format } from 'date-fns';
+import Swal from 'sweetalert2';
 
 import { useAuth, useFirestore, useUser } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,7 +73,6 @@ export default function SettingsPage() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -115,14 +114,20 @@ export default function SettingsPage() {
       await reauthenticateWithCredential(user, credential);
       await updatePassword(user, values.newPassword);
       
-      toast({ title: "Password Changed", description: "Your security credentials have been updated." });
+      Swal.fire({ 
+          icon: 'success', 
+          title: "Password Changed", 
+          text: "Your security credentials have been updated.",
+          timer: 2000,
+          showConfirmButton: false
+      });
       passwordForm.reset();
     } catch (error: any) {
       let message = error.message;
       if (error.code === 'auth/wrong-password') {
         message = "The current password you entered is incorrect.";
       }
-      toast({ variant: "destructive", title: "Update Failed", description: message });
+      Swal.fire({ icon: "error", title: "Update Failed", text: message });
     } finally {
       setIsUpdatingPassword(false);
     }
@@ -134,10 +139,16 @@ export default function SettingsPage() {
     try {
       await updateProfile(user, { photoURL: url });
       await updateDoc(doc(firestore, 'users', user.uid), { photoURL: url });
-      toast({ title: "Avatar Updated", description: "Your profile picture has been changed." });
+      Swal.fire({ 
+          icon: 'success', 
+          title: "Avatar Updated", 
+          text: "Your profile picture has been changed.",
+          timer: 1500,
+          showConfirmButton: false, 
+        });
       setIsAvatarDialogOpen(false);
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
+      Swal.fire({ icon: "error", title: "Error", text: error.message });
     }
   };
 

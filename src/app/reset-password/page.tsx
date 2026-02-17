@@ -6,13 +6,11 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Lock, Eye, EyeOff, Save, Loader2, ShieldCheck } from 'lucide-react';
+import Swal from 'sweetalert2';
 
-import { useAuth } from '@/firebase';
-import { Icons } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
 
 const passwordValidation = new RegExp(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/);
 
@@ -30,9 +28,7 @@ const formSchema = z
   });
 
 export default function ResetPasswordPage() {
-  const { toast } = useToast();
   const router = useRouter();
-  const auth = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -49,7 +45,13 @@ export default function ResetPasswordPage() {
     const resetData = sessionStorage.getItem('resetPasswordData');
     const resetOtp = sessionStorage.getItem('resetOtp');
     if (!resetData || !resetOtp) {
-      router.push('/forgot-password');
+        Swal.fire({
+            icon: 'warning',
+            title: 'Invalid Access',
+            text: 'Please verify your OTP code first.',
+        }).then(() => {
+            router.push('/forgot-password');
+        });
     }
   }, [router]);
 
@@ -57,28 +59,30 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     try {
       const resetDataString = sessionStorage.getItem('resetPasswordData');
-      if (!resetDataString) throw new Error('Session context lost.');
+      if (!resetDataString) throw new Error('Session context lost. Please start over.');
       
-      // In a real-world scenario with Firebase Client SDK, actually resetting 
-      // a password without an action code or re-authentication usually requires 
-      // an admin function or verifyPasswordResetCode. 
-      // For this prototype, we complete the flow to guide the user to the final success state.
+      // In a real application, you would now call a backend service or Firebase function
+      // to securely update the password using the validated OTP and user information.
+      // For this prototype, we simulate the success and navigate the user.
       
-      toast({
+      await Swal.fire({
+        icon: 'success',
         title: 'Password Updated!',
-        description: 'Your security credentials have been successfully reset. Please login with your new password.',
+        text: 'Your security credentials have been successfully reset. Please login with your new password.',
+        timer: 2500,
+        showConfirmButton: false,
       });
 
-      // Cleanup
       sessionStorage.removeItem('resetPasswordData');
       sessionStorage.removeItem('resetOtp');
       
       router.push('/login');
+
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
+      Swal.fire({
+        icon: 'error',
         title: 'Update Failed',
-        description: error.message || 'Could not update your password. Please try again.',
+        text: error.message || 'Could not update your password. Please try again.',
       });
     } finally {
       setIsLoading(false);

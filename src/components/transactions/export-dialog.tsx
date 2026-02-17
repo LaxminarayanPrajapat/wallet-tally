@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Download, Loader2, MailCheck } from 'lucide-react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
+import Swal from 'sweetalert2';
 import { useCurrencySymbol } from '@/hooks/use-currency';
 import { exportTransactionsToPdf } from '@/app/actions/export';
 import { format, startOfDay, endOfDay, isBefore } from 'date-fns';
@@ -24,7 +24,6 @@ import { format, startOfDay, endOfDay, isBefore } from 'date-fns';
 export function ExportDialog() {
   const { user } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
   const currencySymbol = useCurrencySymbol();
   
   const [open, setOpen] = useState(false);
@@ -40,11 +39,11 @@ export function ExportDialog() {
     const end = endOfDay(new Date(endDate));
 
     if (isBefore(end, start)) {
-      toast({
-        variant: "destructive",
-        title: "Invalid Date Range",
-        description: "The end date cannot be earlier than the start date.",
-      });
+        Swal.fire({
+            icon: 'error',
+            title: "Invalid Date Range",
+            text: "The end date cannot be earlier than the start date.",
+          });
       return;
     }
 
@@ -78,11 +77,11 @@ export function ExportDialog() {
       });
 
       if (transactions.length === 0) {
-        toast({
-          variant: "destructive",
-          title: "No Data",
-          description: "There are no transactions in the selected date range.",
-        });
+        Swal.fire({
+            icon: 'error',
+            title: "No Data",
+            text: "There are no transactions in the selected date range.",
+          });
         setIsExporting(false);
         return;
       }
@@ -96,20 +95,21 @@ export function ExportDialog() {
       );
 
       if (result.success) {
-        toast({
-          title: "Report Sent!",
-          description: `A PDF report has been sent to ${user.email}.`,
-        });
+        Swal.fire({
+            icon: 'success',
+            title: "Report Sent!",
+            text: `A PDF report has been sent to ${user.email}.`,
+          });
         setOpen(false);
       } else {
         throw new Error(result.error || 'Failed to generate PDF');
       }
     } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Export Failed",
-        description: error.message || "An error occurred while generating your report.",
-      });
+        Swal.fire({
+            icon: 'error',
+            title: "Export Failed",
+            text: error.message || "An error occurred while generating your report.",
+          });
     } finally {
       setIsExporting(false);
     }

@@ -100,16 +100,25 @@ export default function AdminEmailHistoryPage() {
 
       <Card className="shadow-lg border-slate-200/80 rounded-2xl bg-white">
         <CardHeader><CardTitle className="text-base sm:text-lg font-bold text-slate-800">Email Log Filters</CardTitle></CardHeader>
-        <CardContent className="space-y-4 p-4 sm:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <Input placeholder="Search email, name, subject..." value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="h-10 rounded-md border-slate-300 lg:col-span-2"/>
-            <FilterSelect label="Email Type" value={filters.type} onValueChange={v => handleFilterChange('type', v)} options={[{value: 'all', label: 'All Types'}, ...emailTypes.map(t => ({value: t, label: t}))]} />
-            <FilterSelect label="Status" value={filters.status} onValueChange={v => handleFilterChange('status', v)} options={[{value: 'all', label: 'All Status'}, {value: 'Success', label: 'Success'}, {value: 'Failed', label: 'Failed'}]} />
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <Button onClick={handleApplyFilters} className="h-9 sm:h-10 bg-primary hover:bg-primary/90 text-white rounded-md px-4 sm:px-6 font-bold flex items-center justify-center gap-2 text-sm"><Filter className="w-4 h-4"/>Apply</Button>
-            <Button onClick={handleResetFilters} variant="ghost" className="h-9 sm:h-10 font-bold text-slate-600 rounded-md text-sm">Reset</Button>
-          </div>
+        <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                <div className="sm:flex-[2_2_0%] w-full">
+                    <label className="text-xs font-semibold text-slate-500 ml-1">Search</label>
+                    <Input placeholder="Search email, name, or subject..." value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="h-10 rounded-md border-slate-300 w-full" />
+                </div>
+                <div className="sm:flex-1 w-full">
+                    <FilterSelect label="Email Type" value={filters.type} onValueChange={v => handleFilterChange('type', v)} options={[{value: 'all', label: 'All Types'}, ...emailTypes.map(t => ({value: t, label: t}))]} />
+                </div>
+                <div className="sm:flex-1 w-full">
+                    <FilterSelect label="Status" value={filters.status} onValueChange={v => handleFilterChange('status', v)} options={[{value: 'all', label: 'All Status'}, {value: 'Success', label: 'Success'}, {value: 'Failed', label: 'Failed'}]} />
+                </div>
+                <div className="flex items-center gap-2">
+                    <Button onClick={handleApplyFilters} className="h-10 bg-primary hover:bg-primary/90 text-white rounded-md px-4 font-bold flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
+                        <Filter className="w-4 h-4"/> Apply
+                    </Button>
+                    <Button onClick={handleResetFilters} variant="outline" className="h-10 font-bold text-slate-600 rounded-md text-sm w-full sm:w-auto">Reset</Button>
+                </div>
+            </div>
         </CardContent>
       </Card>
 
