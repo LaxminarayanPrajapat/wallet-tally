@@ -379,9 +379,9 @@ export default function RegisterPage() {
                 render={({ field }) => (
                   <FormItem className="space-y-1.5">
                     <FormLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Currency</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger className="rounded-2xl h-12 border-muted bg-muted/20 pl-11 relative focus:bg-background transition-colors">
+                        <SelectTrigger className="rounded-2xl h-12 border-muted bg-muted/20 pl-11 relative focus:bg-background transition-colors pointer-events-none">
                           <Banknote className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <SelectValue placeholder="Symbol" />
                         </SelectTrigger>

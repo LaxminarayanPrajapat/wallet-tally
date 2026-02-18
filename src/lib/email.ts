@@ -1,4 +1,4 @@
-
+require('dotenv').config();
 import nodemailer from 'nodemailer';
 
 /**
@@ -17,13 +17,22 @@ export type SendEmailOptions = {
 };
 
 export async function sendMail({ to, subject, text, html, attachments }: SendEmailOptions) {
-  // Log SMTP configuration for debugging
-  console.log('--- SMTP Configuration ---');
+  const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM'];
+  const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+  if (missingVars.length > 0) {
+    const errorMessage = `Missing required environment variables for sending email: ${missingVars.join(', ')}`;
+    console.error(errorMessage);
+    throw new Error(errorMessage);
+  }
+
+  console.log('--- Environment Variables for Nodemailer ---');
   console.log('SMTP_HOST:', process.env.SMTP_HOST);
   console.log('SMTP_PORT:', process.env.SMTP_PORT);
   console.log('SMTP_USER:', process.env.SMTP_USER);
+  console.log('SMTP_PASS:', process.env.SMTP_PASS ? '[SET]' : '[NOT SET]'); // Don't log the actual password
   console.log('SMTP_FROM:', process.env.SMTP_FROM);
-  console.log('------------------------');
+  console.log('-------------------------------------------');
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
