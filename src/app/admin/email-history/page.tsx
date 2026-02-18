@@ -107,10 +107,10 @@ export default function AdminEmailHistoryPage() {
                     <Input placeholder="Search email, name, or subject..." value={filters.search} onChange={e => handleFilterChange('search', e.target.value)} className="h-10 rounded-md border-slate-300 w-full" />
                 </div>
                 <div className="sm:flex-1 w-full">
-                    <FilterSelect label="Email Type" value={filters.type} onValueChange={v => handleFilterChange('type', v)} options={[{value: 'all', label: 'All Types'}, ...emailTypes.map(t => ({value: t, label: t}))]} />
+                    <FilterSelect label="Email Type" value={filters.type} onValueChange={(v: string) => handleFilterChange('type', v)} options={[{value: 'all', label: 'All Types'}, ...emailTypes.map(t => ({value: t, label: t}))]} />
                 </div>
                 <div className="sm:flex-1 w-full">
-                    <FilterSelect label="Status" value={filters.status} onValueChange={v => handleFilterChange('status', v)} options={[{value: 'all', label: 'All Status'}, {value: 'Success', label: 'Success'}, {value: 'Failed', label: 'Failed'}]} />
+                    <FilterSelect label="Status" value={filters.status} onValueChange={(v: string) => handleFilterChange('status', v)} options={[{value: 'all', label: 'All Status'}, {value: 'Success', label: 'Success'}, {value: 'Failed', label: 'Failed'}]} />
                 </div>
                 <div className="flex items-center gap-2">
                     <Button onClick={handleApplyFilters} className="h-10 bg-primary hover:bg-primary/90 text-white rounded-md px-4 font-bold flex items-center justify-center gap-2 text-sm w-full sm:w-auto">
