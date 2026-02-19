@@ -122,7 +122,5 @@ export default function RegisterPage() {
     }
   };
 
-  return (
-    // ... (JSX for the registration form)
-  );
+  return <></>;
 }
