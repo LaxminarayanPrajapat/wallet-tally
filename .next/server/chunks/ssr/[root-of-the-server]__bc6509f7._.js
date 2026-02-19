@@ -783,7 +783,7 @@ const countries = [
         code: 'US',
         currency: {
             name: 'US Dollar',
-            symbol: '$'
+            symbol: '$ (USD)'
         }
     },
     {
@@ -791,7 +791,7 @@ const countries = [
         code: 'GB',
         currency: {
             name: 'British Pound',
-            symbol: '£'
+            symbol: '£ (GBP)'
         }
     },
     {
@@ -799,7 +799,7 @@ const countries = [
         code: 'IN',
         currency: {
             name: 'Indian Rupee',
-            symbol: '₹'
+            symbol: '₹ (INR)'
         }
     },
     {
@@ -807,7 +807,7 @@ const countries = [
         code: 'DE',
         currency: {
             name: 'Euro',
-            symbol: '€'
+            symbol: '€ (EUR)'
         }
     },
     {
@@ -815,7 +815,7 @@ const countries = [
         code: 'FR',
         currency: {
             name: 'Euro',
-            symbol: '€'
+            symbol: '€ (EUR)'
         }
     },
     {
@@ -823,7 +823,7 @@ const countries = [
         code: 'IT',
         currency: {
             name: 'Euro',
-            symbol: '€'
+            symbol: '€ (EUR)'
         }
     },
     {
@@ -831,7 +831,7 @@ const countries = [
         code: 'ES',
         currency: {
             name: 'Euro',
-            symbol: '€'
+            symbol: '€ (EUR)'
         }
     },
     {
@@ -839,7 +839,7 @@ const countries = [
         code: 'NL',
         currency: {
             name: 'Euro',
-            symbol: '€'
+            symbol: '€ (EUR)'
         }
     },
     {
@@ -847,7 +847,7 @@ const countries = [
         code: 'JP',
         currency: {
             name: 'Japanese Yen',
-            symbol: '¥'
+            symbol: '¥ (JPY)'
         }
     },
     {
@@ -855,7 +855,7 @@ const countries = [
         code: 'CA',
         currency: {
             name: 'Canadian Dollar',
-            symbol: '$'
+            symbol: '$ (CAD)'
         }
     },
     {
@@ -863,7 +863,7 @@ const countries = [
         code: 'AU',
         currency: {
             name: 'Australian Dollar',
-            symbol: '$'
+            symbol: '$ (AUD)'
         }
     },
     {
@@ -871,7 +871,7 @@ const countries = [
         code: 'NZ',
         currency: {
             name: 'New Zealand Dollar',
-            symbol: '$'
+            symbol: '$ (NZD)'
         }
     },
     {
@@ -879,7 +879,7 @@ const countries = [
         code: 'SG',
         currency: {
             name: 'Singapore Dollar',
-            symbol: '$'
+            symbol: '$ (SGD)'
         }
     },
     {
@@ -887,7 +887,7 @@ const countries = [
         code: 'AE',
         currency: {
             name: 'UAE Dirham',
-            symbol: 'د.إ'
+            symbol: 'د.إ (AED)'
         }
     },
     {
@@ -895,7 +895,7 @@ const countries = [
         code: 'SA',
         currency: {
             name: 'Saudi Riyal',
-            symbol: 'SR'
+            symbol: 'SR (SAR)'
         }
     },
     {
@@ -903,7 +903,7 @@ const countries = [
         code: 'ZA',
         currency: {
             name: 'South African Rand',
-            symbol: 'R'
+            symbol: 'R (ZAR)'
         }
     },
     {
@@ -911,7 +911,7 @@ const countries = [
         code: 'BR',
         currency: {
             name: 'Brazilian Real',
-            symbol: 'R$'
+            symbol: 'R$ (BRL)'
         }
     },
     {
@@ -919,7 +919,7 @@ const countries = [
         code: 'MX',
         currency: {
             name: 'Mexican Peso',
-            symbol: '$'
+            symbol: '$ (MXN)'
         }
     },
     {
@@ -927,7 +927,7 @@ const countries = [
         code: 'AR',
         currency: {
             name: 'Argentine Peso',
-            symbol: '$'
+            symbol: '$ (ARS)'
         }
     },
     {
@@ -935,7 +935,7 @@ const countries = [
         code: 'CL',
         currency: {
             name: 'Chilean Peso',
-            symbol: '$'
+            symbol: '$ (CLP)'
         }
     },
     {
@@ -943,7 +943,7 @@ const countries = [
         code: 'CO',
         currency: {
             name: 'Colombian Peso',
-            symbol: '$'
+            symbol: '$ (COP)'
         }
     },
     {
@@ -951,7 +951,7 @@ const countries = [
         code: 'CN',
         currency: {
             name: 'Chinese Yuan',
-            symbol: '¥'
+            symbol: '¥ (CNY)'
         }
     },
     {
@@ -959,7 +959,7 @@ const countries = [
         code: 'KR',
         currency: {
             name: 'South Korean Won',
-            symbol: '₩'
+            symbol: '₩ (KRW)'
         }
     },
     {
@@ -967,7 +967,7 @@ const countries = [
         code: 'TR',
         currency: {
             name: 'Turkish Lira',
-            symbol: '₺'
+            symbol: '₺ (TRY)'
         }
     },
     {
@@ -975,7 +975,7 @@ const countries = [
         code: 'RU',
         currency: {
             name: 'Russian Ruble',
-            symbol: '₽'
+            symbol: '₽ (RUB)'
         }
     },
     {
@@ -991,7 +991,7 @@ const countries = [
         code: 'SE',
         currency: {
             name: 'Swedish Krona',
-            symbol: 'kr'
+            symbol: 'kr (SEK)'
         }
     },
     {
@@ -999,7 +999,7 @@ const countries = [
         code: 'NO',
         currency: {
             name: 'Norwegian Krone',
-            symbol: 'kr'
+            symbol: 'kr (NOK)'
         }
     },
     {
@@ -1007,7 +1007,7 @@ const countries = [
         code: 'TH',
         currency: {
             name: 'Thai Baht',
-            symbol: '฿'
+            symbol: '฿ (THB)'
         }
     },
     {
@@ -1015,7 +1015,7 @@ const countries = [
         code: 'MY',
         currency: {
             name: 'Malaysian Ringgit',
-            symbol: 'RM'
+            symbol: 'RM (MYR)'
         }
     },
     {
@@ -1023,7 +1023,7 @@ const countries = [
         code: 'ID',
         currency: {
             name: 'Indonesian Rupiah',
-            symbol: 'Rp'
+            symbol: 'Rp (IDR)'
         }
     },
     {
@@ -1031,7 +1031,7 @@ const countries = [
         code: 'VN',
         currency: {
             name: 'Vietnamese Dong',
-            symbol: '₫'
+            symbol: '₫ (VND)'
         }
     },
     {
@@ -1039,7 +1039,7 @@ const countries = [
         code: 'PH',
         currency: {
             name: 'Philippine Peso',
-            symbol: '₱'
+            symbol: '₱ (PHP)'
         }
     },
     {
@@ -1047,7 +1047,7 @@ const countries = [
         code: 'IL',
         currency: {
             name: 'Israeli New Shekel',
-            symbol: '₪'
+            symbol: '₪ (ILS)'
         }
     },
     {
@@ -1055,7 +1055,7 @@ const countries = [
         code: 'PK',
         currency: {
             name: 'Pakistani Rupee',
-            symbol: '₨'
+            symbol: '₨ (PKR)'
         }
     },
     {
@@ -1063,7 +1063,7 @@ const countries = [
         code: 'BD',
         currency: {
             name: 'Bangladeshi Taka',
-            symbol: '৳'
+            symbol: '৳ (BDT)'
         }
     },
     {
@@ -1071,7 +1071,7 @@ const countries = [
         code: 'EG',
         currency: {
             name: 'Egyptian Pound',
-            symbol: 'E£'
+            symbol: 'E£ (EGP)'
         }
     },
     {
@@ -1079,7 +1079,7 @@ const countries = [
         code: 'NG',
         currency: {
             name: 'Nigerian Naira',
-            symbol: '₦'
+            symbol: '₦ (NGN)'
         }
     },
     {
@@ -1087,7 +1087,7 @@ const countries = [
         code: 'KE',
         currency: {
             name: 'Kenyan Shilling',
-            symbol: 'KSh'
+            symbol: 'KSh (KES)'
         }
     }
 ];

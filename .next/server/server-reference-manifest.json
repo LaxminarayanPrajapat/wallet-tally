@@ -2,6 +2,12 @@
   "node": {
     "607f36da0129b9503187b22f20b54e0366fe5210f4": {
       "workers": {
+        "app/otp-verification/page": {
+          "moduleId": "[project]/.next-internal/server/app/otp-verification/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/email.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "sendOtpEmail",
+          "filename": "src/app/actions/email.ts"
+        },
         "app/register/page": {
           "moduleId": "[project]/.next-internal/server/app/register/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/email.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
           "async": false,
@@ -10,10 +16,26 @@
         }
       },
       "layer": {
+        "app/otp-verification/page": "action-browser",
         "app/register/page": "action-browser"
       },
       "filename": "src/app/actions/email.ts",
       "exportedName": "sendOtpEmail"
+    },
+    "7c9e737f19fcfad3b603b005b11888cb721d64fa8c": {
+      "workers": {
+        "app/(app)/dashboard/page": {
+          "moduleId": "[project]/.next-internal/server/app/(app)/dashboard/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/export.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "exportTransactionsToPdf",
+          "filename": "src/app/actions/export.ts"
+        }
+      },
+      "layer": {
+        "app/(app)/dashboard/page": "action-browser"
+      },
+      "filename": "src/app/actions/export.ts",
+      "exportedName": "exportTransactionsToPdf"
     }
   },
   "edge": {},
