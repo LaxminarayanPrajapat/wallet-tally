@@ -55,8 +55,7 @@ export function Hero() {
           Track Your Cash Flow
         </h1>
         <p className="max-w-2xl text-lg sm:text-xl text-primary font-medium leading-relaxed">
-          The simplest way to manage your personal finances. Record daily income, 
-          track expenses, and get insights to grow your savings.
+          The simplest way to manage your personal finances. Record daily cash transactions, and get insights to grow your savings.
         </p>
         
         <div className="flex flex-wrap justify-center gap-6 pt-4">
