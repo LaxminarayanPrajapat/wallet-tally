@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["file:///home/user/studio-main/src/components/landing/animations.css"],"sourcesContent":["@keyframes scroll-left {\n  from {\n    transform: translateX(0);\n  }\n  to {\n    transform: translateX(-50%);\n  }\n}\n\n@keyframes scroll-right {\n  from {\n    transform: translateX(-50%);\n  }\n  to {\n    transform: translateX(0);\n  }\n}\n\n.animate-scroll-left {\n  animation: scroll-left 180s linear infinite;\n}\n\n.animate-scroll-right {\n  animation: scroll-right 180s linear infinite;\n}\n"],"names":[],"mappings":"AAAA;;;;;;;;;;AASA;;;;;;;;;;AASA;;;;AAIA","debugId":null}}]
+}

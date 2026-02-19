@@ -1,0 +1,20 @@
+{
+  "node": {
+    "607f36da0129b9503187b22f20b54e0366fe5210f4": {
+      "workers": {
+        "app/register/page": {
+          "moduleId": "[project]/.next-internal/server/app/register/page/actions.js { ACTIONS_MODULE0 => \"[project]/src/app/actions/email.ts [app-rsc] (ecmascript)\" } [app-rsc] (server actions loader, ecmascript)",
+          "async": false,
+          "exportedName": "sendOtpEmail",
+          "filename": "src/app/actions/email.ts"
+        }
+      },
+      "layer": {
+        "app/register/page": "action-browser"
+      },
+      "exportedName": "sendOtpEmail",
+      "filename": "src/app/actions/email.ts"
+    }
+  },
+  "edge": {}
+}
